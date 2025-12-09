@@ -1,142 +1,188 @@
+version: '3.8'
+
 services:
-  postgres:
+  postgres-currency:
     image: postgres:15-alpine
-    container_name: postgres
+    container_name: postgres-currency
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-exchange_rates_db}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: currency_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_currency_data:/var/lib/postgresql/data
+      - ./init-scripts/currency-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d currency_db"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - exchange-network
+      - cerps-network
+    restart: unless-stopped
+
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: postgres-users
+    environment:
+      POSTGRES_DB: users_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cerps-network
+    restart: unless-stopped
 
   user-service:
     build:
-      context: ./user-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: user-service/Dockerfile
     container_name: user-service
     ports:
-      - "8083:8083"
+      - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exchange_rates_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-for-hs256-algorithm}
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-users:5432/users_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      JWT_EXPIRATION: 86400000
     depends_on:
-      postgres:
+      postgres-users:
         condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - exchange-network
-    restart: unless-stopped
 
   currency-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: currency-service/Dockerfile
     container_name: currency-service
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exchange_rates_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-for-hs256-algorithm}
-      USER_SERVICE_URL: http://user-service:8083
-      MOCK_SERVICE_1_URL: ${MOCK_SERVICE_1_URL:-http://mock-service-1:8081}
-      MOCK_SERVICE_2_URL: ${MOCK_SERVICE_2_URL:-http://mock-service-2:8082}
-      FIXER_API_KEY: ${FIXER_API_KEY}
-      EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY}
-      CURRENCYAPI_KEY: ${CURRENCYAPI_KEY}
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/currency_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      USER_SERVICE_URL: http://user-service:8081
+      MOCK_SERVICE_1_URL: http://mock-service-1:8083
+      MOCK_SERVICE_2_URL: http://mock-service-2:8084
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      FIXER_API_KEY: ${FIXER_API_KEY:-test-api-key}
+      EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY:-test-api-key}
+      CURRENCYAPI_KEY: ${CURRENCYAPI_KEY:-test-api-key}
     depends_on:
-      postgres:
+      postgres-currency:
         condition: service_healthy
       user-service:
         condition: service_healthy
+      mock-service-1:
+        condition: service_healthy
+      mock-service-2:
+        condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - exchange-network
-    restart: unless-stopped
 
   analytics-service:
     build:
-      context: ./analytics-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: analytics-service/Dockerfile
     container_name: analytics-service
     ports:
-      - "8084:8084"
+      - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exchange_rates_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      USER_SERVICE_URL: http://user-service:8083
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/currency_db
+      SPRING_DATASOURCE_USERNAME: analytics_readonly
+      SPRING_DATASOURCE_PASSWORD: analytics_readonly_pass
+      USER_SERVICE_URL: http://user-service:8081
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     depends_on:
-      postgres:
+      postgres-currency:
         condition: service_healthy
       user-service:
         condition: service_healthy
-      currency-service:
-        condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - exchange-network
-    restart: unless-stopped
 
   mock-service-1:
     build:
-      context: ./mock-service-1
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mock-service-1/Dockerfile
     container_name: mock-service-1
     ports:
-      - "8081:8081"
+      - "8083:8083"
     environment:
-      SERVER_PORT: 8081
-      SPRING_APPLICATION_NAME: mock-service-1
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
     networks:
-      - exchange-network
+      - cerps-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   mock-service-2:
     build:
-      context: ./mock-service-2
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mock-service-2/Dockerfile
     container_name: mock-service-2
     ports:
-      - "8082:8082"
+      - "8084:8084"
     environment:
-      SERVER_PORT: 8082
-      SPRING_APPLICATION_NAME: mock-service-2
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8084
     networks:
-      - exchange-network
+      - cerps-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
-  postgres_data:
+  postgres_currency_data:
+    driver: local
+  postgres_users_data:
     driver: local
 
 networks:
-  exchange-network:
+  cerps-network:
     driver: bridge
