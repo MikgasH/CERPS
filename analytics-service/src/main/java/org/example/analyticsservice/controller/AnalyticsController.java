@@ -3,7 +3,7 @@ package org.example.analyticsservice.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
+// import jakarta.validation.Valid; <-- УДАЛЕН
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.analyticsservice.dto.TrendsRequest;

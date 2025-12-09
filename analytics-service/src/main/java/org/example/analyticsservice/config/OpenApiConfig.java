@@ -1,34 +1,24 @@
-package com.example.cerpshashkin.config;
+package org.example.analyticsservice.config;
 
-import io.swagger.v3.oas.models.Components;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
-import io.swagger.v3.oas.models.security.SecurityScheme;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.example.cerps.common.config.BaseOpenApiConfig;
+
 @Configuration
-public class OpenApiConfig {
+public class OpenApiConfig extends BaseOpenApiConfig {
 
-    private static final String SECURITY_SCHEME_NAME = "Bearer Authentication";
+    @Override
+    protected String getTitle() {
+        return "Analytics Service API";
+    }
 
-    @Bean
-    public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("Analytics Service API")
-                        .version("1.0")
-                        .description("Currency trends analytics service"))
-                .addSecurityItem(new SecurityRequirement()
-                        .addList(SECURITY_SCHEME_NAME))
-                .components(new Components()
-                        .addSecuritySchemes(SECURITY_SCHEME_NAME,
-                                new SecurityScheme()
-                                        .name(SECURITY_SCHEME_NAME)
-                                        .type(SecurityScheme.Type.HTTP)
-                                        .scheme("bearer")
-                                        .bearerFormat("JWT")
-                                        .description("Enter JWT token (without 'Bearer ' prefix)")));
+    @Override
+    protected String getDescription() {
+        return "REST API for currency trends analytics";
+    }
+
+    @Override
+    protected String getVersion() {
+        return "1.0.0";
     }
 }
