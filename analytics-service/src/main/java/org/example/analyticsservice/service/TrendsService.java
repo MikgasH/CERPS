@@ -2,6 +2,10 @@ package org.example.analyticsservice.service;
 
 import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.analyticsservice.entity.ExchangeRateEntity;
@@ -33,52 +37,80 @@ public class TrendsService {
     private static final int CALCULATION_SCALE = 6;
 
     private final ExchangeRateRepository exchangeRateRepository;
+    private final MeterRegistry meterRegistry;
+
+    private Counter trendsSuccessCounter;
+    private Counter trendsFailureCounter;
+    private Timer trendsCalculationTimer;
+
+    @PostConstruct
+    public void initMetrics() {
+        trendsSuccessCounter = Counter.builder("analytics.trends.success")
+                .description("Number of successful trend calculations")
+                .register(meterRegistry);
+
+        trendsFailureCounter = Counter.builder("analytics.trends.failure")
+                .description("Number of failed trend calculations")
+                .register(meterRegistry);
+
+        trendsCalculationTimer = Timer.builder("analytics.trends.time")
+                .description("Time taken for trend calculation")
+                .register(meterRegistry);
+    }
 
     public TrendsResponse calculateTrends(final TrendsRequest request) {
-        log.info(LOG_CALCULATING_TRENDS, request.from(), request.to(), request.period());
+        return trendsCalculationTimer.record(() -> {
+            try {
+                log.info(LOG_CALCULATING_TRENDS, request.from(), request.to(), request.period());
 
-        final Currency fromCurrency = Currency.getInstance(request.from().toUpperCase());
-        final Currency toCurrency = Currency.getInstance(request.to().toUpperCase());
+                final Currency fromCurrency = Currency.getInstance(request.from().toUpperCase());
+                final Currency toCurrency = Currency.getInstance(request.to().toUpperCase());
 
-        final Instant endDate = Instant.now();
-        final Instant startDate = calculateStartDate(endDate, request.period());
+                final Instant endDate = Instant.now();
+                final Instant startDate = calculateStartDate(endDate, request.period());
 
-        final List<ExchangeRateEntity> rates = exchangeRateRepository.findRatesForPeriod(
-                fromCurrency.getCurrencyCode(),
-                toCurrency.getCurrencyCode(),
-                startDate,
-                endDate
-        );
+                final List<ExchangeRateEntity> rates = exchangeRateRepository.findRatesForPeriod(
+                        fromCurrency.getCurrencyCode(),
+                        toCurrency.getCurrencyCode(),
+                        startDate,
+                        endDate
+                );
 
-        log.info(LOG_FOUND_DATA_POINTS, rates.size());
+                log.info(LOG_FOUND_DATA_POINTS, rates.size());
 
-        if (rates.size() < 2) {
-            throw new InsufficientDataException(
-                    String.format(ERROR_INSUFFICIENT_DATA, rates.size())
-            );
-        }
+                if (rates.size() < 2) {
+                    throw new InsufficientDataException(
+                            String.format(ERROR_INSUFFICIENT_DATA, rates.size())
+                    );
+                }
 
-        final ExchangeRateEntity oldestRate = rates.getFirst();
-        final ExchangeRateEntity newestRate = rates.getLast();
+                final ExchangeRateEntity oldestRate = rates.getFirst();
+                final ExchangeRateEntity newestRate = rates.getLast();
 
-        final BigDecimal changePercentage = calculatePercentageChange(
-                oldestRate.getRate(),
-                newestRate.getRate()
-        );
+                final BigDecimal changePercentage = calculatePercentageChange(
+                        oldestRate.getRate(),
+                        newestRate.getRate()
+                );
 
-        log.info(LOG_TREND_RESULT, request.from(), request.to(), changePercentage);
+                log.info(LOG_TREND_RESULT, request.from(), request.to(), changePercentage);
 
-        return TrendsResponse.success(
-                request.from().toUpperCase(),
-                request.to().toUpperCase(),
-                request.period().toUpperCase(),
-                oldestRate.getRate(),
-                newestRate.getRate(),
-                changePercentage,
-                oldestRate.getTimestamp(),
-                newestRate.getTimestamp(),
-                rates.size()
-        );
+                trendsSuccessCounter.increment();
+                return TrendsResponse.success(
+                        request.from().toUpperCase(),
+                        request.to().toUpperCase(),
+                        request.period().toUpperCase(),
+                        oldestRate.getRate(),
+                        newestRate.getRate(),
+                        changePercentage,
+                        oldestRate.getTimestamp(),
+                        newestRate.getTimestamp(),
+                        rates.size()
+                );
+            } catch (Exception e) {
+                trendsFailureCounter.increment();
+                throw e;
+            }
+        });
     }
 
     private Instant calculateStartDate(final Instant endDate, final String period) {

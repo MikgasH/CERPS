@@ -1,5 +1,8 @@
 package org.example.userservice.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.userservice.dto.ChangePasswordRequest;
@@ -54,56 +57,93 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final MeterRegistry meterRegistry;
+
+    private Counter registrationSuccessCounter;
+    private Counter registrationFailureCounter;
+    private Counter loginSuccessCounter;
+    private Counter loginFailureCounter;
+
+    @PostConstruct
+    public void initMetrics() {
+        registrationSuccessCounter = Counter.builder("user.registrations.success")
+                .description("Number of successful user registrations")
+                .register(meterRegistry);
+
+        registrationFailureCounter = Counter.builder("user.registrations.failure")
+                .description("Number of failed user registrations")
+                .register(meterRegistry);
+
+        loginSuccessCounter = Counter.builder("user.logins.success")
+                .description("Number of successful user logins")
+                .register(meterRegistry);
+
+        loginFailureCounter = Counter.builder("user.logins.failure")
+                .description("Number of failed user logins")
+                .register(meterRegistry);
+    }
 
     @Transactional
     public void register(final RegisterRequest request) {
         log.info(LOG_REGISTER_START, request.email());
 
-        if (userRepository.existsByEmail(request.email())) {
-            throw new UserAlreadyExistsException(
-                    String.format(ERROR_EMAIL_EXISTS, request.email())
-            );
+        try {
+            if (userRepository.existsByEmail(request.email())) {
+                throw new UserAlreadyExistsException(
+                        String.format(ERROR_EMAIL_EXISTS, request.email())
+                );
+            }
+
+            final RoleEntity userRole = roleRepository.findByName(ROLE_USER)
+                    .orElseThrow(() -> new RuntimeException(
+                            String.format(ERROR_ROLE_NOT_FOUND, ROLE_USER)
+                    ));
+
+            final Set<RoleEntity> roles = new HashSet<>();
+            roles.add(userRole);
+
+            final UserEntity user = UserEntity.builder()
+                    .email(request.email())
+                    .password(passwordEncoder.encode(request.password()))
+                    .enabled(true)
+                    .createdAt(Instant.now())
+                    .roles(roles)
+                    .build();
+
+            userRepository.save(user);
+            registrationSuccessCounter.increment();
+            log.info(LOG_REGISTER_SUCCESS, request.email());
+        } catch (Exception e) {
+            registrationFailureCounter.increment();
+            throw e;
         }
-
-        final RoleEntity userRole = roleRepository.findByName(ROLE_USER)
-                .orElseThrow(() -> new RuntimeException(
-                        String.format(ERROR_ROLE_NOT_FOUND, ROLE_USER)
-                ));
-
-        final Set<RoleEntity> roles = new HashSet<>();
-        roles.add(userRole);
-
-        final UserEntity user = UserEntity.builder()
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .enabled(true)
-                .createdAt(Instant.now())
-                .roles(roles)
-                .build();
-
-        userRepository.save(user);
-        log.info(LOG_REGISTER_SUCCESS, request.email());
     }
 
     public LoginResponse login(final LoginRequest request) {
         log.info(LOG_LOGIN_START, request.email());
 
-        final Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
-        );
+        try {
+            final Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.email(),
+                            request.password()
+                    )
+            );
 
-        final UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        final String token = jwtService.generateToken(userDetails);
+            final UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            final String token = jwtService.generateToken(userDetails);
 
-        final List<String> roles = userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .toList();
+            final List<String> roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList();
 
-        log.info(LOG_LOGIN_SUCCESS, request.email());
-        return LoginResponse.success(token, request.email(), roles);
+            loginSuccessCounter.increment();
+            log.info(LOG_LOGIN_SUCCESS, request.email());
+            return LoginResponse.success(token, request.email(), roles);
+        } catch (Exception e) {
+            loginFailureCounter.increment();
+            throw e;
+        }
     }
 
     public UserInfoResponse getCurrentUserInfo(final String email) {

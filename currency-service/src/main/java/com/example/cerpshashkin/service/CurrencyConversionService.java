@@ -3,6 +3,10 @@ package com.example.cerpshashkin.service;
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,22 +25,51 @@ public class CurrencyConversionService {
     private static final int SCALE = 6;
 
     private final ExchangeRateService exchangeRateService;
+    private final MeterRegistry meterRegistry;
+
+    private Counter successCounter;
+    private Counter failureCounter;
+    private Timer conversionTimer;
+
+    @PostConstruct
+    public void initMetrics() {
+        successCounter = Counter.builder("currency.conversions.success")
+                .description("Number of successful currency conversions")
+                .register(meterRegistry);
+
+        failureCounter = Counter.builder("currency.conversions.failure")
+                .description("Number of failed currency conversions")
+                .register(meterRegistry);
+
+        conversionTimer = Timer.builder("currency.conversion.time")
+                .description("Time taken for currency conversion")
+                .register(meterRegistry);
+    }
 
     public ConversionResponse convertCurrency(final ConversionRequest request) {
-        log.info(LOG_CONVERTING, request.amount(), request.from(), request.to());
+        return conversionTimer.record(() -> {
+            try {
+                log.info(LOG_CONVERTING, request.amount(), request.from(), request.to());
 
-        final Currency fromCurrency = Currency.getInstance(request.from().toUpperCase());
-        final Currency toCurrency = Currency.getInstance(request.to().toUpperCase());
+                final Currency fromCurrency = Currency.getInstance(request.from().toUpperCase());
+                final Currency toCurrency = Currency.getInstance(request.to().toUpperCase());
 
-        if (fromCurrency.equals(toCurrency)) {
-            return createSameCurrencyResponse(request);
-        }
+                if (fromCurrency.equals(toCurrency)) {
+                    successCounter.increment();
+                    return createSameCurrencyResponse(request);
+                }
 
-        final BigDecimal rate = exchangeRateService
-                .getExchangeRate(fromCurrency, toCurrency)
-                .orElseThrow(() -> new RateNotAvailableException(request.from(), request.to()));
+                final BigDecimal rate = exchangeRateService
+                        .getExchangeRate(fromCurrency, toCurrency)
+                        .orElseThrow(() -> new RateNotAvailableException(request.from(), request.to()));
 
-        return createConversionResponse(request, rate);
+                successCounter.increment();
+                return createConversionResponse(request, rate);
+            } catch (Exception e) {
+                failureCounter.increment();
+                throw e;
+            }
+        });
     }
 
     private ConversionResponse createSameCurrencyResponse(final ConversionRequest request) {

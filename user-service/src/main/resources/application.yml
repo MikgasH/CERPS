@@ -28,11 +28,30 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: prometheus,health,metrics
       base-path: /actuator
   endpoint:
     health:
       show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    enable:
+      jvm: false
+      process: false
+      system: false
+      tomcat: false
+      logback: false
+      executor: false
+      spring.security: false
+      disk: false
+      hikaricp: true
+      jdbc: false
+    tags:
+      application: ${spring.application.name}
+      service: user-service
 
 logging:
   level:
