@@ -1,7 +1,7 @@
 package org.example.analyticsservice.config;
 
 import lombok.RequiredArgsConstructor;
-import org.example.analyticsservice.filter.JwtAuthenticationFilter;
+import org.example.analyticsservice.filter.GatewayHeaderAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,6 +13,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Security configuration for analytics-service.
+ * Reads user information from gateway headers (X-User-Email, X-User-Roles).
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -37,7 +41,7 @@ public class SecurityConfig {
             "/actuator/**"
     };
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GatewayHeaderAuthenticationFilter gatewayHeaderAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -66,7 +70,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayHeaderAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

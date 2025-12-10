@@ -56,6 +56,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
       JWT_EXPIRATION: 86400000
+      API_GATEWAY_URL: http://localhost:8000
     depends_on:
       postgres-users:
         condition: service_healthy
@@ -88,6 +89,7 @@ services:
       FIXER_API_KEY: ${FIXER_API_KEY:-test-api-key}
       EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY:-test-api-key}
       CURRENCYAPI_KEY: ${CURRENCYAPI_KEY:-test-api-key}
+      API_GATEWAY_URL: http://localhost:8000
     depends_on:
       postgres-currency:
         condition: service_healthy
@@ -122,6 +124,7 @@ services:
       USER_SERVICE_URL: http://user-service:8081
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      API_GATEWAY_URL: http://localhost:8000
     depends_on:
       postgres-currency:
         condition: service_healthy
@@ -176,6 +179,33 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+    depends_on:
+      user-service:
+        condition: service_healthy
+      currency-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_currency_data:

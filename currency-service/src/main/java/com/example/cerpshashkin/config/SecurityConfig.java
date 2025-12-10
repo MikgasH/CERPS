@@ -1,6 +1,6 @@
 package com.example.cerpshashkin.config;
 
-import com.example.cerpshashkin.filter.JwtAuthenticationFilter;
+import com.example.cerpshashkin.filter.GatewayHeaderAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Security configuration for currency-service.
- * Validates JWT tokens via user-service.
+ * Reads user information from gateway headers (X-User-Email, X-User-Roles).
  */
 @Configuration
 @EnableWebSecurity
@@ -40,7 +40,7 @@ public class SecurityConfig {
             "/actuator/**"
     };
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GatewayHeaderAuthenticationFilter gatewayHeaderAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -66,7 +66,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayHeaderAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

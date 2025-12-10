@@ -6,18 +6,22 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 @Service
 @Slf4j
 public class JwtService {
+
+    private static final String ROLES_CLAIM = "roles";
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -38,7 +42,12 @@ public class JwtService {
     }
 
     public String generateToken(final UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        final Map<String, Object> claims = new HashMap<>();
+        final List<String> roles = userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList();
+        claims.put(ROLES_CLAIM, roles);
+        return generateToken(claims, userDetails);
     }
 
     public String generateToken(

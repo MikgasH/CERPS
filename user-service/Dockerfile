@@ -10,6 +10,7 @@ COPY cerps-common cerps-common
 COPY currency-service currency-service
 COPY user-service user-service
 COPY analytics-service analytics-service
+COPY api-gateway api-gateway
 COPY mock-service-1 mock-service-1
 COPY mock-service-2 mock-service-2
 

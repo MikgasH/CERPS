@@ -5,9 +5,16 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 
+import java.util.List;
+
 public abstract class BaseOpenApiConfig {
+
+    @Value("${springdoc.server-url:}")
+    private String serverUrl;
 
     protected abstract String getTitle();
 
@@ -19,7 +26,7 @@ public abstract class BaseOpenApiConfig {
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "Bearer Authentication";
 
-        return new OpenAPI()
+        final OpenAPI openAPI = new OpenAPI()
                 .info(new Info()
                         .title(getTitle())
                         .description(getDescription())
@@ -31,5 +38,11 @@ public abstract class BaseOpenApiConfig {
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
                                 .description("Enter JWT token")));
+
+        if (serverUrl != null && !serverUrl.isBlank()) {
+            openAPI.servers(List.of(new Server().url(serverUrl).description("API Gateway")));
+        }
+
+        return openAPI;
     }
 }

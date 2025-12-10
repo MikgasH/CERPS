@@ -38,3 +38,7 @@ logging:
   level:
     org.example.userservice: INFO
     org.springframework.security: WARN
+
+springdoc:
+  server-url: ${API_GATEWAY_URL:}
+

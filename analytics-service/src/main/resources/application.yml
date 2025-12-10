@@ -44,3 +44,4 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+  server-url: ${API_GATEWAY_URL:}

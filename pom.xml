@@ -17,6 +17,7 @@
         <module>currency-service</module>
         <module>user-service</module>
         <module>analytics-service</module>
+        <module>api-gateway</module>
         <module>mock-service-1</module>
         <module>mock-service-2</module>
     </modules>
@@ -43,10 +44,20 @@
         <testcontainers.version>1.21.3</testcontainers.version>
         <wiremock.version>3.12.1</wiremock.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <lombok.version>1.18.32</lombok.version> </properties>
+        <lombok.version>1.18.32</lombok.version>
+        <spring-cloud.version>2024.0.1</spring-cloud.version>
+    </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <dependency>
                 <groupId>com.example</groupId>
                 <artifactId>cerps-common</artifactId>
@@ -75,6 +86,12 @@
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+                <version>${swagger.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
                 <version>${swagger.version}</version>
             </dependency>
 
