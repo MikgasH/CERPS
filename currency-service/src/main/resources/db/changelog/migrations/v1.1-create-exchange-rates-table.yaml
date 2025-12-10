@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-exchange-rates-table
+      author: hashkin
+      changes:
+        - createTable:
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: base_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate
+                  type: DECIMAL(20, 10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: VARCHAR(20)
+                  defaultValue: AGGREGATED
+              - column:
+                  name: timestamp
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: exchange_rates

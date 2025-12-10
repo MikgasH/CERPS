@@ -1,0 +1,85 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: currency-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
+api:
+  fixer:
+    url: http://data.fixer.io/api
+    access-key: ${FIXER_API_KEY}
+
+  exchangerates:
+    url: http://api.exchangeratesapi.io/v1
+    access-key: ${EXCHANGERATES_API_KEY}
+
+  currencyapi:
+    url: https://api.currencyapi.com/v3
+    access-key: ${CURRENCYAPI_KEY}
+
+  mock1:
+    url: ${MOCK_SERVICE_1_URL:http://localhost:8083}
+
+  mock2:
+    url: ${MOCK_SERVICE_2_URL:http://localhost:8084}
+
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+
+cache:
+  exchange-rates:
+    ttl: 3600
+
+scheduling:
+  enabled: true
+  exchange-rates:
+    rate: 3600000
+
+exchange-rates:
+  base-currency: EUR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.cerpshashkin: INFO
+    org.springframework.web: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: DEBUG
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true

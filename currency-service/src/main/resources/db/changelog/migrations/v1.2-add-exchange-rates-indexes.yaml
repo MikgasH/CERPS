@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-exchange-rates-indexes
+      author: hashkin
+      changes:
+        - createIndex:
+            indexName: idx_latest_rate
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: base_currency
+              - column:
+                  name: target_currency
+              - column:
+                  name: timestamp
+                  descending: true
+        - createIndex:
+            indexName: idx_trends
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: base_currency
+              - column:
+                  name: target_currency
+              - column:
+                  name: timestamp
+        - createIndex:
+            indexName: idx_timestamp
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: timestamp
+      rollback:
+        - dropIndex:
+            indexName: idx_latest_rate
+            tableName: exchange_rates
+        - dropIndex:
+            indexName: idx_trends
+            tableName: exchange_rates
+        - dropIndex:
+            indexName: idx_timestamp
+            tableName: exchange_rates
