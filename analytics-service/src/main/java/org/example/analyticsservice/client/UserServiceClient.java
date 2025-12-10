@@ -1,7 +1,7 @@
 package org.example.analyticsservice.client;
 
+import com.example.cerps.common.dto.UserValidationResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.example.analyticsservice.dto.UserValidationResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,22 +21,27 @@ public class UserServiceClient {
         this.restClient = restClientBuilder.build();
     }
 
-    public UserValidationResponse validateToken(final String token) {
+    public UserValidationResponse validateToken(final String authorizationHeader) {
         log.debug("Validating token with User Service");
 
         try {
             final UserValidationResponse response = restClient.post()
                     .uri(userServiceUrl + "/api/internal/auth/validate")
-                    .header("Authorization", "Bearer " + token)
+                    .header("Authorization", authorizationHeader)
                     .retrieve()
                     .body(UserValidationResponse.class);
 
-            log.debug("Token validation response: valid={}", response != null && response.valid());
+            if (response == null) {
+                log.warn("Received null response from User Service");
+                return UserValidationResponse.invalid();
+            }
+
+            log.debug("Token validation response: valid={}", response.valid());
             return response;
 
         } catch (final Exception e) {
-            log.error("Failed to validate token with User Service", e);
-            return new UserValidationResponse(false, null, null);
+            log.error("Failed to validate token with User Service: {}", e.getMessage());
+            return UserValidationResponse.invalid();
         }
     }
 }

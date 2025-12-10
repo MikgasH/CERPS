@@ -1,6 +1,6 @@
 package com.example.cerpshashkin.dto;
 
-import com.example.cerpshashkin.converter.ResponseConverter;
+import com.example.cerps.common.converter.ResponseConverter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 

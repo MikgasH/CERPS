@@ -1,8 +1,8 @@
 package org.example.userservice.controller;
 
+import com.example.cerps.common.dto.UserValidationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.userservice.dto.UserValidationResponse;
 import org.example.userservice.service.CustomUserDetailsService;
 import org.example.userservice.service.JwtService;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +37,7 @@ public class InternalAuthController {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn(LOG_TOKEN_INVALID);
-            return ResponseEntity.ok(new UserValidationResponse(false, null, null));
+            return ResponseEntity.ok(UserValidationResponse.invalid());
         }
 
         try {
@@ -51,15 +51,15 @@ public class InternalAuthController {
                         .toList();
 
                 log.debug(LOG_TOKEN_VALID, username);
-                return ResponseEntity.ok(new UserValidationResponse(true, username, roles));
+                return ResponseEntity.ok(UserValidationResponse.valid(username, roles));
             }
 
             log.warn(LOG_TOKEN_INVALID);
-            return ResponseEntity.ok(new UserValidationResponse(false, null, null));
+            return ResponseEntity.ok(UserValidationResponse.invalid());
 
         } catch (Exception e) {
             log.error("Token validation error: {}", e.getMessage());
-            return ResponseEntity.ok(new UserValidationResponse(false, null, null));
+            return ResponseEntity.ok(UserValidationResponse.invalid());
         }
     }
 }

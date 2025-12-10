@@ -1,9 +1,9 @@
 package org.example.analyticsservice.service;
 
+import com.example.cerps.common.dto.TrendsRequest;
+import com.example.cerps.common.dto.TrendsResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.analyticsservice.dto.TrendsRequest;
-import org.example.analyticsservice.dto.TrendsResponse;
 import org.example.analyticsservice.entity.ExchangeRateEntity;
 import org.example.analyticsservice.exception.InsufficientDataException;
 import org.example.analyticsservice.repository.ExchangeRateRepository;
@@ -44,8 +44,8 @@ public class TrendsService {
         final Instant startDate = calculateStartDate(endDate, request.period());
 
         final List<ExchangeRateEntity> rates = exchangeRateRepository.findRatesForPeriod(
-                fromCurrency,
-                toCurrency,
+                fromCurrency.getCurrencyCode(),
+                toCurrency.getCurrencyCode(),
                 startDate,
                 endDate
         );

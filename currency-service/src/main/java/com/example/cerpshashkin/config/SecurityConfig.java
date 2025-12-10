@@ -5,18 +5,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Security configuration for currency-service.
+ * Validates JWT tokens via user-service.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -31,7 +31,6 @@ public class SecurityConfig {
     private static final String ENDPOINT_CURRENCIES_REFRESH = "/api/v1/currencies/refresh";
     private static final String ENDPOINT_CURRENCIES_CONVERT = "/api/v1/currencies/convert";
 
-    // Публичные endpoints (Swagger и healthcheck)
     private static final String[] PUBLIC_ENDPOINTS = {
             "/swagger-ui/**",
             "/swagger-ui.html",
@@ -40,8 +39,6 @@ public class SecurityConfig {
             "/webjars/**",
             "/actuator/**"
     };
-
-    private static final int BCRYPT_STRENGTH = 12;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -72,16 +69,5 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(
-            final AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
     }
 }

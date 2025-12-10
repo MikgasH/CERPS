@@ -1,9 +1,11 @@
 package org.example.userservice.filter;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.userservice.service.CustomUserDetailsService;
@@ -30,9 +32,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            final HttpServletRequest request,
-            final HttpServletResponse response,
-            final FilterChain filterChain
+            @NonNull final HttpServletRequest request,
+            @NonNull final HttpServletResponse response,
+            @NonNull final FilterChain filterChain
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader(AUTHORIZATION_HEADER);
@@ -42,28 +44,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        final String jwt = authHeader.substring(BEARER_PREFIX.length());
+
         try {
-            final String jwt = authHeader.substring(BEARER_PREFIX.length());
             final String username = jwtService.extractUsername(jwt);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (username != null) {
                 final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
-                    final UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
+                    final UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                    log.debug("User {} authenticated with roles: {}", username, userDetails.getAuthorities());
                 }
             }
+        } catch (final JwtException e) {
+            log.warn("JWT validation failed: {}", e.getMessage());
         } catch (final Exception e) {
-            log.error("Cannot set user authentication", e);
+            log.error("Authentication error during JWT processing: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);

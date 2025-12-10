@@ -1,5 +1,6 @@
 package org.example.analyticsservice.filter;
 
+import com.example.cerps.common.dto.UserValidationResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,7 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.analyticsservice.client.UserServiceClient;
-import org.example.analyticsservice.dto.UserValidationResponse;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,12 +17,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -31,43 +31,52 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            final HttpServletRequest request,
-            final HttpServletResponse response,
-            final FilterChain filterChain
+            @NonNull final HttpServletRequest request,
+            @NonNull final HttpServletResponse response,
+            @NonNull final FilterChain filterChain
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader(AUTHORIZATION_HEADER);
 
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+        if (authHeader == null || authHeader.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String jwt = authHeader.substring(BEARER_PREFIX.length());
+        if (!authHeader.startsWith(BEARER_PREFIX)) {
+            log.warn("Authorization header does not start with Bearer prefix");
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            final UserValidationResponse validation = userServiceClient.validateToken(jwt);
+        try {
+            log.debug("Validating token with User Service");
 
-            if (validation != null && validation.valid()) {
-                final List<SimpleGrantedAuthority> authorities = validation.roles() != null
-                        ? validation.roles().stream()
+            final UserValidationResponse validationResponse =
+                    userServiceClient.validateToken(authHeader);
+
+            if (validationResponse.valid()) {
+                final List<SimpleGrantedAuthority> authorities = validationResponse.roles().stream()
                         .map(SimpleGrantedAuthority::new)
-                        .toList()
-                        : Collections.emptyList();
+                        .toList();
 
-                final UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        validation.username(),
-                        null,
-                        authorities
-                );
+                final UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                validationResponse.username(),
+                                null,
+                                authorities
+                        );
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                log.debug("User {} authenticated with roles: {}", validation.username(), validation.roles());
+                log.debug("User {} authenticated with roles: {}",
+                        validationResponse.username(), validationResponse.roles());
             } else {
                 log.warn("Token validation failed");
             }
+        } catch (final Exception e) {
+            log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);

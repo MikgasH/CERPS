@@ -21,6 +21,10 @@ spring:
         default_schema: public
     open-in-view: false
 
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+
 management:
   endpoints:
     web:
@@ -40,7 +44,3 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
-
-services:
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8083}
