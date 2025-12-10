@@ -6,6 +6,7 @@ import com.example.cerpshashkin.converter.CurrencyApiConverter;
 import com.example.cerpshashkin.dto.CurrencyApiRawResponse;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +42,7 @@ public class CurrencyApiClient implements ExchangeRateClient {
     private final CurrencyApiConverter converter;
 
     @Override
+    @Retry(name = "currencyApiClient")
     public CurrencyExchangeResponse getLatestRates() {
         log.info(FETCHING_LATEST_LOG, getProviderName());
         log.debug(REQUEST_LOG, ENDPOINT);

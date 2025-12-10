@@ -75,6 +75,8 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 springdoc:
   api-docs:
@@ -84,3 +86,17 @@ springdoc:
     path: /swagger-ui.html
     enabled: true
   server-url: ${API_GATEWAY_URL:}
+
+resilience4j:
+  retry:
+    instances:
+      fixerClient:
+        max-attempts: 3
+        wait-duration: 2s
+      exchangeRatesClient:
+        max-attempts: 3
+        wait-duration: 2s
+      currencyApiClient:
+        max-attempts: 3
+        wait-duration: 2s
+

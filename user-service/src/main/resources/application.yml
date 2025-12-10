@@ -38,6 +38,8 @@ logging:
   level:
     org.example.userservice: INFO
     org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 springdoc:
   server-url: ${API_GATEWAY_URL:}

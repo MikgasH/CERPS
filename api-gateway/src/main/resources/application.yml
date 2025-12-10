@@ -94,6 +94,8 @@ logging:
     com.example.apigateway: DEBUG
     org.springframework.cloud.gateway: DEBUG
     org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 springdoc:
   api-docs:

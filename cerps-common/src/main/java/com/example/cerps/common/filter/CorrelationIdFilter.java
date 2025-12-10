@@ -1,10 +1,11 @@
-package org.example.userservice.config;
+package com.example.cerps.common.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.lang.NonNull;
@@ -14,14 +15,21 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * Filter that manages Correlation ID for distributed tracing.
+ * This filter reads or generates a Correlation ID for each request,
+ * stores it in MDC for logging, and propagates it in response headers.
+ */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
-    private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
-    private static final String CORRELATION_ID_MDC = "correlationId";
-    private static final String SERVICE_NAME_MDC = "service";
-    private static final String SERVICE_NAME = "user-service";
+    public static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
+    public static final String CORRELATION_ID_MDC = "correlationId";
+    public static final String SERVICE_NAME_MDC = "service";
+
+    @Value("${spring.application.name:unknown-service}")
+    private String serviceName;
 
     @Override
     protected void doFilterInternal(
@@ -36,7 +44,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         }
 
         MDC.put(CORRELATION_ID_MDC, correlationId);
-        MDC.put(SERVICE_NAME_MDC, SERVICE_NAME);
+        MDC.put(SERVICE_NAME_MDC, serviceName);
         response.setHeader(CORRELATION_ID_HEADER, correlationId);
 
         try {
@@ -46,3 +54,4 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         }
     }
 }
+
