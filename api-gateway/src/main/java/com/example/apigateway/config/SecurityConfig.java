@@ -6,10 +6,6 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
-/**
- * Security configuration for API Gateway.
- * Disables default security as JWT validation is handled by JwtAuthenticationFilter.
- */
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {

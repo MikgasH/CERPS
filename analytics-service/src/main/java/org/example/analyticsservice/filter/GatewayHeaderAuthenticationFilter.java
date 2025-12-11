@@ -18,11 +18,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Filter that reads user information from gateway headers.
- * This filter is used when requests come through the API Gateway,
- * which has already validated the JWT token.
- */
 @Slf4j
 @Component
 public class GatewayHeaderAuthenticationFilter extends OncePerRequestFilter {

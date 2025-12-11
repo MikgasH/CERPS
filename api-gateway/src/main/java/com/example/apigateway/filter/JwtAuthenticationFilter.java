@@ -22,10 +22,6 @@ import reactor.core.publisher.Mono;
 import javax.crypto.SecretKey;
 import java.util.List;
 
-/**
- * Global JWT authentication filter for API Gateway.
- * Validates JWT tokens and forwards user information to downstream services.
- */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
@@ -63,7 +59,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         final ServerHttpRequest request = exchange.getRequest();
         final String path = request.getPath().value();
 
-        // Skip authentication for public endpoints
         if (isPublicEndpoint(path)) {
             log.debug("Public endpoint accessed: {}", path);
             return chain.filter(exchange);
@@ -85,7 +80,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
             log.debug("JWT validated for user: {} with roles: {}", username, roles);
 
-            // Add user info headers to the request for downstream services
             final ServerHttpRequest modifiedRequest = request.mutate()
                     .header(X_USER_EMAIL, username)
                     .header(X_USER_ROLES, String.join(",", roles))
@@ -104,7 +98,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -100; // High priority
+        return -100;
     }
 
     private boolean isPublicEndpoint(final String path) {

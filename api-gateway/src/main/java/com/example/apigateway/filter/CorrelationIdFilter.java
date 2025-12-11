@@ -12,11 +12,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-/**
- * Global filter that manages Correlation ID for distributed tracing in API Gateway.
- * This filter generates a unique Correlation ID for each incoming request
- * and propagates it to all downstream services.
- */
 @Component
 @Slf4j
 public class CorrelationIdFilter implements GlobalFilter, Ordered {
@@ -35,12 +30,10 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         final String finalCorrelationId = correlationId;
         log.debug("Processing request with Correlation ID: {}", finalCorrelationId);
 
-        // Add correlation ID to the request for downstream services
         final ServerHttpRequest modifiedRequest = request.mutate()
                 .header(CORRELATION_ID_HEADER, finalCorrelationId)
                 .build();
 
-        // Add correlation ID to response
         final ServerHttpResponse response = exchange.getResponse();
         response.getHeaders().add(CORRELATION_ID_HEADER, finalCorrelationId);
 

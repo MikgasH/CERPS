@@ -13,10 +13,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Security configuration for currency-service.
- * Reads user information from gateway headers (X-User-Email, X-User-Roles).
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity

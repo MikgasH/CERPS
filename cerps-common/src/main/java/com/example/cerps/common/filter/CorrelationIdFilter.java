@@ -15,11 +15,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Filter that manages Correlation ID for distributed tracing.
- * This filter reads or generates a Correlation ID for each request,
- * stores it in MDC for logging, and propagates it in response headers.
- */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
