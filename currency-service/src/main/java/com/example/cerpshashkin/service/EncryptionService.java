@@ -21,7 +21,7 @@ public class EncryptionService {
     private final SecretKey secretKey;
     private final SecureRandom secureRandom;
 
-    public EncryptionService(@Value("${encryption.master-key}") String masterKey) {
+    public EncryptionService(@Value("${encryption.master-key}") final String masterKey) {
         byte[] keyBytes = Base64.getDecoder().decode(masterKey);
         if (keyBytes.length != 32) {
             throw new IllegalArgumentException("Master key must be 256 bits (32 bytes)");
@@ -30,7 +30,7 @@ public class EncryptionService {
         this.secureRandom = new SecureRandom();
     }
 
-    public String encrypt(String plaintext) {
+    public String encrypt(final String plaintext) {
         try {
             byte[] iv = new byte[GCM_IV_LENGTH];
             secureRandom.nextBytes(iv);
@@ -51,7 +51,7 @@ public class EncryptionService {
         }
     }
 
-    public String decrypt(String encrypted) {
+    public String decrypt(final String encrypted) {
         try {
             byte[] decoded = Base64.getDecoder().decode(encrypted);
 

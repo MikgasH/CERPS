@@ -66,7 +66,7 @@ public class ProviderKeyManagementController {
             @ApiResponse(responseCode = "403", description = "Admin access required")
     })
     public ResponseEntity<ProviderKeyResponse> createProviderKey(
-            @Valid @RequestBody CreateProviderKeyRequest request) {
+            @Valid @RequestBody final CreateProviderKeyRequest request) {
 
         log.info("POST /api/v1/admin/provider-keys - creating key for provider: {}", request.providerName());
         ProviderKeyResponse response = service.createProviderKey(request);
@@ -143,7 +143,7 @@ public class ProviderKeyManagementController {
             @ApiResponse(responseCode = "403", description = "Admin access required"),
             @ApiResponse(responseCode = "404", description = "Provider key not found")
     })
-    public ResponseEntity<ProviderKeyResponse> getProviderKey(@PathVariable Long id) {
+    public ResponseEntity<ProviderKeyResponse> getProviderKey(@PathVariable final Long id) {
         log.info("GET /api/v1/admin/provider-keys/{} - retrieving provider key", id);
         ProviderKeyResponse response = service.getProviderKey(id);
 
@@ -178,8 +178,8 @@ public class ProviderKeyManagementController {
             @ApiResponse(responseCode = "404", description = "Provider key not found")
     })
     public ResponseEntity<ProviderKeyResponse> updateProviderKey(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateProviderKeyRequest request) {
+            @PathVariable final Long id,
+            @Valid @RequestBody final UpdateProviderKeyRequest request) {
 
         log.info("PUT /api/v1/admin/provider-keys/{} - updating provider key", id);
         ProviderKeyResponse response = service.updateProviderKey(id, request);
@@ -199,7 +199,7 @@ public class ProviderKeyManagementController {
             @ApiResponse(responseCode = "403", description = "Admin access required"),
             @ApiResponse(responseCode = "404", description = "Provider key not found")
     })
-    public ResponseEntity<Void> deleteProviderKey(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProviderKey(@PathVariable final Long id) {
         log.info("DELETE /api/v1/admin/provider-keys/{} - deactivating provider key", id);
         service.deleteProviderKey(id);
         log.info("Provider key {} deactivated successfully", id);
@@ -235,8 +235,8 @@ public class ProviderKeyManagementController {
             @ApiResponse(responseCode = "404", description = "Provider key not found")
     })
     public ResponseEntity<ProviderKeyResponse> rotateProviderKey(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateProviderKeyRequest request) {
+            @PathVariable final Long id,
+            @Valid @RequestBody final UpdateProviderKeyRequest request) {
 
         log.info("POST /api/v1/admin/provider-keys/{}/rotate - rotating provider key", id);
         ProviderKeyResponse response = service.rotateProviderKey(id, request);

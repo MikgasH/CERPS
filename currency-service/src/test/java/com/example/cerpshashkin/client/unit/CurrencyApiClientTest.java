@@ -12,7 +12,7 @@ class CurrencyApiClientTest {
 
     @Test
     void getProviderName_ShouldReturnCorrectName() {
-        CurrencyApiClient client = new CurrencyApiClient(null, null);
+        CurrencyApiClient client = new CurrencyApiClient(null, null, null);
 
         assertThat(client.getProviderName()).isEqualTo("CurrencyAPI");
     }

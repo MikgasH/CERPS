@@ -12,7 +12,7 @@ class ExchangeRatesClientTest {
 
     @Test
     void getProviderName_ShouldReturnCorrectName() {
-        ExchangeRatesClient client = new ExchangeRatesClient(null, null);
+        ExchangeRatesClient client = new ExchangeRatesClient(null, null, null);
 
         assertThat(client.getProviderName()).isEqualTo("ExchangeRatesAPI");
     }

@@ -1,10 +1,18 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerps.common.dto.ConversionRequest;
+import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -24,8 +32,16 @@ class CurrencyConversionServiceUnitTest {
     @Mock
     private ExchangeRateService exchangeRateService;
 
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     @InjectMocks
     private CurrencyConversionService conversionService;
+
+    @BeforeEach
+    void setUp() {
+        conversionService.initMetrics();
+    }
 
     @Test
     void convertCurrency_WithSameCurrencies_ShouldReturnSameAmount() {

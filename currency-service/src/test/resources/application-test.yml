@@ -19,6 +19,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
 
   liquibase:
     enabled: false
@@ -26,6 +27,7 @@ spring:
   sql:
     init:
       mode: always
+      data-locations: classpath:test-data.sql
 
 scheduling:
   enabled: false

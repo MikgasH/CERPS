@@ -29,7 +29,7 @@ public class ProviderKeyManagementService {
 
     @Transactional
     @CacheEvict(value = "decryptedApiKeys", key = "#request.providerName()")
-    public ProviderKeyResponse createProviderKey(CreateProviderKeyRequest request) {
+    public ProviderKeyResponse createProviderKey(final CreateProviderKeyRequest request) {
         log.info("Creating provider key for provider: {}", request.providerName());
 
         String encryptedKey = encryptionService.encrypt(request.apiKey());
@@ -50,7 +50,7 @@ public class ProviderKeyManagementService {
     }
 
     @Transactional(readOnly = true)
-    public ProviderKeyResponse getProviderKey(Long id) {
+    public ProviderKeyResponse getProviderKey(final Long id) {
         log.debug("Retrieving provider key with id: {}", id);
 
         ApiProviderKeyEntity entity = repository.findById(id)
@@ -71,7 +71,7 @@ public class ProviderKeyManagementService {
 
     @Transactional
     @CacheEvict(value = "decryptedApiKeys", key = "#result.providerName()")
-    public ProviderKeyResponse updateProviderKey(Long id, UpdateProviderKeyRequest request) {
+    public ProviderKeyResponse updateProviderKey(final Long id, final UpdateProviderKeyRequest request) {
         log.info("Updating provider key with id: {}", id);
 
         ApiProviderKeyEntity entity = repository.findById(id)
@@ -88,7 +88,7 @@ public class ProviderKeyManagementService {
     }
 
     @Transactional
-    public void deleteProviderKey(Long id) {
+    public void deleteProviderKey(final Long id) {
         log.info("Deactivating provider key with id: {}", id);
 
         ApiProviderKeyEntity entity = repository.findById(id)
@@ -104,7 +104,7 @@ public class ProviderKeyManagementService {
 
     @Transactional
     @CacheEvict(value = "decryptedApiKeys", key = "#result.providerName()")
-    public ProviderKeyResponse rotateProviderKey(Long id, UpdateProviderKeyRequest request) {
+    public ProviderKeyResponse rotateProviderKey(final Long id, final UpdateProviderKeyRequest request) {
         log.info("Rotating provider key with id: {}", id);
 
         ApiProviderKeyEntity entity = repository.findById(id)
@@ -122,7 +122,7 @@ public class ProviderKeyManagementService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = "decryptedApiKeys", key = "#providerName")
-    public String getDecryptedApiKey(String providerName) {
+    public String getDecryptedApiKey(final String providerName) {
         log.debug("Retrieving and decrypting API key for provider: {}", providerName);
 
         ApiProviderKeyEntity entity = repository.findByProviderNameAndActiveTrue(providerName)
@@ -135,7 +135,7 @@ public class ProviderKeyManagementService {
     }
 
     @CacheEvict(value = "decryptedApiKeys", key = "#providerName")
-    public void evictCacheForProvider(String providerName) {
+    public void evictCacheForProvider(final String providerName) {
         log.debug("Evicting cache for provider: {}", providerName);
     }
 }

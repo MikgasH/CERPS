@@ -1,5 +1,7 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerps.common.dto.ConversionRequest;
+import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.InvalidCurrencyException;

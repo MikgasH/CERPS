@@ -12,7 +12,7 @@ class FixerioClientTest {
 
     @Test
     void getProviderName_ShouldReturnCorrectName() {
-        FixerioClient client = new FixerioClient(null, null);
+        FixerioClient client = new FixerioClient(null, null, null);
 
         assertThat(client.getProviderName()).isEqualTo("Fixer.io");
     }

@@ -1,16 +1,15 @@
-/*
 package com.example.cerpshashkin;
 
+import com.example.cerpshashkin.config.TestConfig;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -20,9 +19,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -33,6 +30,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestConfig.class)
 public abstract class BaseWireMockTest {
 
     protected static final WireMockServer wireMockServer;
@@ -47,7 +45,7 @@ public abstract class BaseWireMockTest {
     }
 
     @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
+    static void configureProperties(final DynamicPropertyRegistry registry) {
         String baseUrl = "http://localhost:" + wireMockServer.port();
         registry.add("api.fixer.url", () -> baseUrl);
         registry.add("api.exchangerates.url", () -> baseUrl);
@@ -56,69 +54,29 @@ public abstract class BaseWireMockTest {
         registry.add("api.mock2.url", () -> baseUrl);
     }
 
-    @BeforeAll
-    static void setupTestData(@Autowired SupportedCurrencyRepository supportedCurrencyRepository,
-                              @Autowired RoleRepository roleRepository,
-                              @Autowired UserRepository userRepository,
-                              @Autowired PasswordEncoder passwordEncoder) {
-        if (supportedCurrencyRepository.count() == 0) {
-            setupCurrencies(supportedCurrencyRepository);
+    @Autowired
+    private SupportedCurrencyRepository supportedCurrencyRepository;
+
+    private static boolean dataInitialized = false;
+
+    @BeforeEach
+    void setUp() {
+        if (!dataInitialized && supportedCurrencyRepository.count() == 0) {
+            setupCurrencies();
+            dataInitialized = true;
         }
-        if (roleRepository.count() == 0) {
-            setupRolesAndUsers(roleRepository, userRepository, passwordEncoder);
-        }
+        resetWireMock();
     }
 
-    private static void setupCurrencies(SupportedCurrencyRepository repository) {
+    private void setupCurrencies() {
         List.of("USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY", "SEK", "NZD")
-                .forEach(code -> repository.save(
+                .forEach(code -> supportedCurrencyRepository.save(
                         SupportedCurrencyEntity.builder()
                                 .currencyCode(code)
                                 .build()
                 ));
     }
 
-    private static void setupRolesAndUsers(RoleRepository roleRepository,
-                                           UserRepository userRepository,
-                                           PasswordEncoder passwordEncoder) {
-        RoleEntity roleUser = roleRepository.save(
-                RoleEntity.builder().name("ROLE_USER").build()
-        );
-        RoleEntity rolePremium = roleRepository.save(
-                RoleEntity.builder().name("ROLE_PREMIUM_USER").build()
-        );
-        RoleEntity roleAdmin = roleRepository.save(
-                RoleEntity.builder().name("ROLE_ADMIN").build()
-        );
-
-        String password = passwordEncoder.encode("password");
-
-        userRepository.save(UserEntity.builder()
-                .email("user@example.com")
-                .password(password)
-                .enabled(true)
-                .createdAt(Instant.now())
-                .roles(Set.of(roleUser))
-                .build());
-
-        userRepository.save(UserEntity.builder()
-                .email("premium@example.com")
-                .password(password)
-                .enabled(true)
-                .createdAt(Instant.now())
-                .roles(Set.of(roleUser, rolePremium))
-                .build());
-
-        userRepository.save(UserEntity.builder()
-                .email("admin@example.com")
-                .password(password)
-                .enabled(true)
-                .createdAt(Instant.now())
-                .roles(Set.of(roleUser, rolePremium, roleAdmin))
-                .build());
-    }
-
-    @BeforeEach
     void resetWireMock() {
         if (wireMockServer.isRunning()) {
             wireMockServer.resetAll();
@@ -195,4 +153,3 @@ public abstract class BaseWireMockTest {
         }
     }
 }
-*/

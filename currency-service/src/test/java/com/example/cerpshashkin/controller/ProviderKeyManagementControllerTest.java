@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.controller;
 
+import com.example.cerpshashkin.config.TestConfig;
 import com.example.cerpshashkin.dto.CreateProviderKeyRequest;
 import com.example.cerpshashkin.dto.UpdateProviderKeyRequest;
 import com.example.cerpshashkin.repository.ApiProviderKeyRepository;
@@ -10,10 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -32,6 +35,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(TestConfig.class)
+@TestPropertySource(properties = {
+    "api.fixer.access-key=test-fixer-key",
+    "api.exchangerates.access-key=test-exchangerates-key",
+    "api.currencyapi.access-key=test-currencyapi-key",
+    "scheduling.enabled=false",
+    "spring.jpa.defer-datasource-initialization=false",
+    "spring.sql.init.mode=never"
+})
 class ProviderKeyManagementControllerTest {
 
     @Container
@@ -101,17 +113,18 @@ class ProviderKeyManagementControllerTest {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void createProviderKey_WithoutAuthentication_ShouldReturn401() throws Exception {
+    void createProviderKey_WithoutAuthentication_ShouldReturn403() throws Exception {
         CreateProviderKeyRequest request = new CreateProviderKeyRequest("fixer", "test_api_key");
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
