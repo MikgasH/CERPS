@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.2-add-exchange-rates-indexes.yaml
   - include:
       file: db/changelog/migrations/v1.3-insert-default-currencies.yaml
+  - include:
+      file: db/changelog/migrations/v1.4-create-api-provider-keys-table.yaml

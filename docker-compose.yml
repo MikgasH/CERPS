@@ -110,6 +110,7 @@ services:
       MOCK_SERVICE_1_URL: http://mock-service-1:8083
       MOCK_SERVICE_2_URL: http://mock-service-2:8084
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
       FIXER_API_KEY: ${FIXER_API_KEY:-test-api-key}
       EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY:-test-api-key}
       CURRENCYAPI_KEY: ${CURRENCYAPI_KEY:-test-api-key}

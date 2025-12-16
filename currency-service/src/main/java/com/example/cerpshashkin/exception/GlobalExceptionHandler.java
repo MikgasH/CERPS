@@ -29,6 +29,18 @@ public class GlobalExceptionHandler {
         return createProblemDetail(HttpStatus.NOT_FOUND, "Currency not found", ex.getMessage());
     }
 
+    @ExceptionHandler(ProviderKeyNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ProblemDetail handleProviderKeyNotFoundException(final ProviderKeyNotFoundException ex) {
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage());
+    }
+
+    @ExceptionHandler(ProviderKeyNotFoundByNameException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ProblemDetail handleProviderKeyNotFoundByNameException(final ProviderKeyNotFoundByNameException ex) {
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage());
+    }
+
     @ExceptionHandler(RateNotAvailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleRateNotAvailableException(final RateNotAvailableException ex) {

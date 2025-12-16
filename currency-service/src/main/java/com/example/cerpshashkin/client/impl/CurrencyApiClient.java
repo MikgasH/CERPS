@@ -6,10 +6,10 @@ import com.example.cerpshashkin.converter.CurrencyApiConverter;
 import com.example.cerpshashkin.dto.CurrencyApiRawResponse;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import com.example.cerpshashkin.service.ProviderKeyManagementService;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -35,11 +35,9 @@ public class CurrencyApiClient implements ExchangeRateClient {
     private static final String INVALID_META_ERROR = "Invalid meta information";
     private static final String HTTP_ERROR_PREFIX = "HTTP error: ";
 
-    @Value("${api.currencyapi.access-key}")
-    private String currencyapiAccessKey;
-
     private final RestClient currencyapiRestClient;
     private final CurrencyApiConverter converter;
+    private final ProviderKeyManagementService providerKeyService;
 
     @Override
     @Retry(name = "currencyApiClient")
@@ -47,9 +45,11 @@ public class CurrencyApiClient implements ExchangeRateClient {
         log.info(FETCHING_LATEST_LOG, getProviderName());
         log.debug(REQUEST_LOG, ENDPOINT);
 
+        final String apiKey = providerKeyService.getDecryptedApiKey(getProviderName());
+
         final CurrencyApiRawResponse response = currencyapiRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path(ENDPOINT)
-                        .queryParam(API_KEY_PARAM, currencyapiAccessKey)
+                        .queryParam(API_KEY_PARAM, apiKey)
                         .build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),

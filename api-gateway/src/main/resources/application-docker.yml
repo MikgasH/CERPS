@@ -27,6 +27,14 @@ spring:
           filters:
             - StripPrefix=0
 
+        # Currency Service Admin routes
+        - id: currency-service-admin
+          uri: http://currency-service:8080
+          predicates:
+            - Path=/api/v1/admin/**
+          filters:
+            - StripPrefix=0
+
         # Analytics Service routes
         - id: analytics-service
           uri: http://analytics-service:8082

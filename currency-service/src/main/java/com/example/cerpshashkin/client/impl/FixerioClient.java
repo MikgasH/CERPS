@@ -6,10 +6,10 @@ import com.example.cerpshashkin.converter.ExternalApiConverter;
 import com.example.cerpshashkin.dto.FixerioResponse;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import com.example.cerpshashkin.service.ProviderKeyManagementService;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -34,11 +34,9 @@ public class FixerioClient implements ExchangeRateClient {
     private static final String EMPTY_RATES_ERROR = "Empty rates received";
     private static final String HTTP_ERROR_PREFIX = "HTTP error: ";
 
-    @Value("${api.fixer.access-key}")
-    private String fixerAccessKey;
-
     private final RestClient fixerRestClient;
     private final ExternalApiConverter converter;
+    private final ProviderKeyManagementService providerKeyService;
 
     @Override
     @Retry(name = "fixerClient")
@@ -46,9 +44,11 @@ public class FixerioClient implements ExchangeRateClient {
         log.info(FETCHING_LATEST_LOG, getProviderName());
         log.debug(REQUEST_LOG, ENDPOINT);
 
+        final String apiKey = providerKeyService.getDecryptedApiKey(getProviderName());
+
         final FixerioResponse response = fixerRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path(ENDPOINT)
-                        .queryParam(ACCESS_KEY_PARAM, fixerAccessKey)
+                        .queryParam(ACCESS_KEY_PARAM, apiKey)
                         .build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),

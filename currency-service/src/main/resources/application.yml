@@ -60,6 +60,9 @@ scheduling:
 exchange-rates:
   base-currency: EUR
 
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY}
+
 management:
   endpoints:
     web:
