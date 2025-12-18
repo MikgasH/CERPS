@@ -117,6 +117,83 @@ class JwtAuthenticationFilterTest {
         assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
     }
 
+    @Test
+    void filter_TokenWithoutBearerPrefix_ShouldReturnUnauthorized() {
+        String token = generateToken(TEST_USER, TEST_ROLES);
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/api/v1/currencies")
+                .header(HttpHeaders.AUTHORIZATION, token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void filter_MultipleRoles_ShouldAddAllRolesToHeader() {
+        List<String> multipleRoles = List.of("ROLE_USER", "ROLE_ADMIN");
+        String token = generateToken(TEST_USER, multipleRoles);
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/api/v1/currencies")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        ArgumentCaptor<ServerWebExchange> exchangeCaptor = ArgumentCaptor.forClass(ServerWebExchange.class);
+        when(filterChain.filter(exchangeCaptor.capture())).thenReturn(Mono.empty());
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+
+        ServerWebExchange capturedExchange = exchangeCaptor.getValue();
+        String userRoles = capturedExchange.getRequest().getHeaders().getFirst("X-User-Roles");
+
+        assertNotNull(userRoles);
+        assertTrue(userRoles.contains("ROLE_USER"));
+        assertTrue(userRoles.contains("ROLE_ADMIN"));
+    }
+
+    @Test
+    void filter_ExpiredToken_ShouldReturnUnauthorized() {
+        String expiredToken = generateExpiredToken(TEST_USER, TEST_ROLES);
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/api/v1/currencies")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredToken)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void filter_ActuatorEndpoint_ShouldPassThrough() {
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/actuator/health")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        when(filterChain.filter(any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+
+        verify(filterChain).filter(any());
+    }
+
+    @Test
+    void getOrder_ShouldReturnNegative100() {
+        assertEquals(-100, filter.getOrder());
+    }
+
     private String generateToken(String username, List<String> roles) {
         byte[] keyBytes = Decoders.BASE64.decode(TEST_SECRET);
         SecretKey key = Keys.hmacShaKeyFor(keyBytes);
@@ -129,5 +206,17 @@ class JwtAuthenticationFilterTest {
                 .signWith(key)
                 .compact();
     }
-}
 
+    private String generateExpiredToken(String username, List<String> roles) {
+        byte[] keyBytes = Decoders.BASE64.decode(TEST_SECRET);
+        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
+
+        return Jwts.builder()
+                .claims(Map.of("roles", roles))
+                .subject(username)
+                .issuedAt(new Date(System.currentTimeMillis() - 7200000))
+                .expiration(new Date(System.currentTimeMillis() - 3600000))
+                .signWith(key)
+                .compact();
+    }
+}
