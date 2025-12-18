@@ -26,7 +26,8 @@ spring:
 
   sql:
     init:
-      mode: never
+      mode: always
+      data-locations: classpath:test-data.sql
 
 scheduling:
   enabled: false

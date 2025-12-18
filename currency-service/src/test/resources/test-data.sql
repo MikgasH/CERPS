@@ -16,4 +16,3 @@ VALUES
     (nextval('supported_currencies_seq'), 'CNY'),
     (nextval('supported_currencies_seq'), 'SEK'),
     (nextval('supported_currencies_seq'), 'NZD');
-
