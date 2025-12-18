@@ -22,8 +22,23 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Start Docker
+        run: |
+          sudo systemctl start docker
+          sudo chmod 666 /var/run/docker.sock
+
       - name: Build and Test All Services
         run: mvn clean verify
+
+      - name: Upload Test Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 30
 
       - name: Generate Coverage Reports
         run: mvn jacoco:report
