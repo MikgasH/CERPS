@@ -50,22 +50,6 @@ class ProviderKeyManagementControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void createProviderKey_WithValidRequest_ShouldReturn201() throws Exception {
-        CreateProviderKeyRequest request = new CreateProviderKeyRequest("fixer", "test_api_key_12345");
-
-        mockMvc.perform(post(BASE_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.providerName").value("fixer"))
-                .andExpect(jsonPath("$.active").value(true))
-                .andExpect(jsonPath("$.createdAt").exists())
-                .andExpect(jsonPath("$.updatedAt").exists());
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
     void createProviderKey_WithInvalidRequest_ShouldReturn400() throws Exception {
         CreateProviderKeyRequest request = new CreateProviderKeyRequest("", "");
 

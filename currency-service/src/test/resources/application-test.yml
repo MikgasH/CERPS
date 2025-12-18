@@ -29,6 +29,9 @@ spring:
       mode: always
       data-locations: classpath:test-data.sql
 
+  main:
+    allow-bean-definition-overriding: true
+
 scheduling:
   enabled: false
 

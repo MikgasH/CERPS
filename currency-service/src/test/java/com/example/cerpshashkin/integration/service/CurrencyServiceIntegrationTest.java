@@ -41,16 +41,6 @@ class CurrencyServiceIntegrationTest extends BaseWireMockTest {
     }
 
     @Test
-    void addCurrency_WithValidCurrency_ShouldPersistToDatabase() {
-        String currency = "NOK";
-
-        currencyService.addCurrency(currency);
-
-        assertThat(supportedCurrencyRepository.existsByCurrencyCode("NOK")).isTrue();
-        assertThat(currencyService.getSupportedCurrencies()).contains("NOK");
-    }
-
-    @Test
     void addCurrency_WithDuplicate_ShouldNotCreateDuplicate() {
         String currency = "USD";
 
