@@ -1,12 +1,9 @@
 spring:
   application:
-    name: User-Management-Service-Test
-
-  main:
-    allow-bean-definition-overriding: true
+    name: User-Management-Service
 
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -19,6 +16,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
 
   liquibase:
     enabled: false
@@ -27,19 +25,31 @@ spring:
     console:
       enabled: false
 
+  sql:
+    init:
+      mode: always
+
 server:
   port: 0
 
 jwt:
-  secret: dGVzdC1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tdGVzdGluZy1wdXJwb3Nlcy1vbmx5LTEyMzQ1Njc4OTA=
+  secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzLW11c3QtYmUtbG9uZy1lbm91Z2gtZm9yLWhzMjU2LWFsZ29yaXRobQ==
   expiration: 86400000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  metrics:
+    enable:
+      jvm: false
+      process: false
+      system: false
 
 logging:
   level:
     org.example.userservice: DEBUG
-
-management:
-  metrics:
-    enable:
-      all: false
-
+    org.springframework.security: WARN
+    liquibase: OFF
+    org.hibernate.SQL: OFF

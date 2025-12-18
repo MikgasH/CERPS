@@ -1,11 +1,13 @@
-package org.example.userservice.repository;
+package org.example.userservice.integration.repository;
 
 import org.example.userservice.entity.RoleEntity;
+import org.example.userservice.integration.config.TestConfig;
+import org.example.userservice.repository.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
@@ -15,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@Import(TestConfig.class)
 class RoleRepositoryTest {
 
     @Autowired
@@ -132,3 +134,4 @@ class RoleRepositoryTest {
         assertThat(count).isEqualTo(2);
     }
 }
+
