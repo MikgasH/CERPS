@@ -14,6 +14,7 @@ spring:
     show-sql: false
     open-in-view: false
     database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
 
   liquibase:
     enabled: false
@@ -21,6 +22,10 @@ spring:
   h2:
     console:
       enabled: false
+
+  sql:
+    init:
+      mode: never
 
 server:
   port: 0
@@ -34,4 +39,3 @@ jwt:
 logging:
   level:
     org.example.analyticsservice: DEBUG
-
