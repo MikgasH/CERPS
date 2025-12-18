@@ -15,7 +15,6 @@ public class TestConfig {
     @Primary
     public ClientHttpRequestInterceptor correlationIdInterceptor() {
         return (request, body, execution) -> {
-            // Simple test implementation without MDC dependency
             request.getHeaders().add("X-Correlation-ID", "test-correlation-id");
             return execution.execute(request, body);
         };

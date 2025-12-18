@@ -1,5 +1,7 @@
-/*package org.example.userservice.service;
+package org.example.userservice.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.example.userservice.dto.ChangePasswordRequest;
 import org.example.userservice.dto.LoginRequest;
 import org.example.userservice.dto.LoginResponse;
@@ -10,6 +12,7 @@ import org.example.userservice.entity.UserEntity;
 import org.example.userservice.exception.UserAlreadyExistsException;
 import org.example.userservice.repository.RoleRepository;
 import org.example.userservice.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -60,11 +63,31 @@ class AuthenticationServiceTest {
     @Mock
     private AuthenticationManager authenticationManager;
 
+    @Mock
+    private MeterRegistry meterRegistry;
+
     @InjectMocks
     private AuthenticationService authenticationService;
 
+    @BeforeEach
+    void setUp() {
+        // Mock metric counters
+        Counter mockCounter = mock(Counter.class);
+        when(meterRegistry.counter(anyString())).thenReturn(mockCounter);
+        when(meterRegistry.counter(anyString(), any(String[].class))).thenReturn(mockCounter);
+
+        // Mock Counter.Builder for method chaining
+        Counter.Builder mockBuilder = mock(Counter.Builder.class);
+        when(mockBuilder.description(anyString())).thenReturn(mockBuilder);
+        when(mockBuilder.register(any(MeterRegistry.class))).thenReturn(mockCounter);
+        when(Counter.builder(anyString())).thenReturn(mockBuilder);
+
+        // Initialize metrics
+        authenticationService.initMetrics();
+    }
+
     @Test
-    void register_WithNewUser_ShouldCreateUserSuccessfully() {
+    void should_CreateUserSuccessfully_When_RegisteringNewUser() {
         RegisterRequest request = RegisterRequest.builder()
                 .email("newuser@example.com")
                 .password("Password123!")
@@ -92,7 +115,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void register_WithExistingEmail_ShouldThrowException() {
+    void should_ThrowException_When_RegisteringWithExistingEmail() {
         RegisterRequest request = RegisterRequest.builder()
                 .email("existing@example.com")
                 .password("Password123!")
@@ -110,7 +133,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void register_WhenRoleNotFound_ShouldThrowException() {
+    void should_ThrowException_When_DefaultRoleNotFound() {
         RegisterRequest request = RegisterRequest.builder()
                 .email("newuser@example.com")
                 .password("Password123!")
@@ -128,7 +151,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void login_WithValidCredentials_ShouldReturnToken() {
+    void should_ReturnToken_When_LoginWithValidCredentials() {
         LoginRequest request = LoginRequest.builder()
                 .email("user@example.com")
                 .password("Password123!")
@@ -161,7 +184,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void login_WithInvalidPassword_ShouldThrowException() {
+    void should_ThrowException_When_LoginWithInvalidPassword() {
         LoginRequest request = LoginRequest.builder()
                 .email("user@example.com")
                 .password("WrongPassword123!")
@@ -178,7 +201,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void login_WithMultipleRoles_ShouldReturnAllRoles() {
+    void should_ReturnAllRoles_When_LoginWithMultipleRoles() {
         LoginRequest request = LoginRequest.builder()
                 .email("admin@example.com")
                 .password("Password123!")
@@ -209,7 +232,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void login_WithDisabledUser_ShouldThrowException() {
+    void should_ThrowException_When_LoginWithDisabledUser() {
         LoginRequest request = LoginRequest.builder()
                 .email("disabled@example.com")
                 .password("Password123!")
@@ -225,7 +248,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void getCurrentUserInfo_WithValidEmail_ShouldReturnUserInfo() {
+    void should_ReturnUserInfo_When_GettingCurrentUserWithValidEmail() {
         String email = "user@example.com";
 
         RoleEntity roleUser = RoleEntity.builder()
@@ -259,7 +282,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void getCurrentUserInfo_WithNonExistentUser_ShouldThrowException() {
+    void should_ThrowException_When_GettingNonExistentUser() {
         String email = "nonexistent@example.com";
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
@@ -270,7 +293,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void getCurrentUserInfo_WithMultipleRoles_ShouldReturnAllRoles() {
+    void should_ReturnAllRoles_When_GettingUserWithMultipleRoles() {
         String email = "admin@example.com";
 
         RoleEntity roleUser = RoleEntity.builder()
@@ -305,7 +328,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void changePassword_WithValidCurrentPassword_ShouldUpdatePassword() {
+    void should_UpdatePassword_When_ChangingWithValidCurrentPassword() {
         String email = "user@example.com";
         String currentPassword = "OldPassword123!";
         String newPassword = "NewPassword123!";
@@ -337,7 +360,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void changePassword_WithInvalidCurrentPassword_ShouldThrowException() {
+    void should_ThrowException_When_ChangingPasswordWithInvalidCurrent() {
         String email = "user@example.com";
         String currentPassword = "WrongPassword123!";
         String newPassword = "NewPassword123!";
@@ -365,7 +388,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void changePassword_WithSamePassword_ShouldThrowException() {
+    void should_ThrowException_When_ChangingToSamePassword() {
         String email = "user@example.com";
         String currentPassword = "Password123!";
         String newPassword = "Password123!";
@@ -394,7 +417,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    void changePassword_WithNonExistentUser_ShouldThrowException() {
+    void should_ThrowException_When_ChangingPasswordForNonExistentUser() {
         String email = "nonexistent@example.com";
 
         ChangePasswordRequest request = ChangePasswordRequest.builder()
@@ -410,5 +433,5 @@ class AuthenticationServiceTest {
 
         verify(userRepository, never()).save(any());
     }
-}*/
+}
 

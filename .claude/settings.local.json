@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean test:*)",
+      "Bash(java:*)",
+      "Bash(./mvnw clean test:*)"
+    ]
+  }
+}
