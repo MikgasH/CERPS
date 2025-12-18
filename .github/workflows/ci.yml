@@ -11,6 +11,10 @@ jobs:
     name: Build and Test All Services
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,10 +26,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Start Docker
+      - name: Setup Docker for Testcontainers
         run: |
-          sudo systemctl start docker
-          sudo chmod 666 /var/run/docker.sock
+          docker version
+          docker ps
 
       - name: Build and Test All Services
         run: mvn clean verify
@@ -50,6 +54,22 @@ jobs:
           path: '**/target/site/jacoco/'
           retention-days: 30
 
+      - name: Display Coverage Summary
+        run: |
+          echo "=== Coverage Summary ==="
+          echo ""
+          echo "API Gateway:"
+          grep -A 3 "Total" api-gateway/target/site/jacoco/index.html | head -4 || echo "No coverage data"
+          echo ""
+          echo "Currency Service:"
+          grep -A 3 "Total" currency-service/target/site/jacoco/index.html | head -4 || echo "No coverage data"
+          echo ""
+          echo "User Service:"
+          grep -A 3 "Total" user-service/target/site/jacoco/index.html | head -4 || echo "No coverage data"
+          echo ""
+          echo "Analytics Service:"
+          grep -A 3 "Total" analytics-service/target/site/jacoco/index.html | head -4 || echo "No coverage data"
+
   code-quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
@@ -70,3 +90,6 @@ jobs:
 
       - name: Run PMD
         run: mvn pmd:check || true
+
+      - name: Compile All Services
+        run: mvn clean compile
