@@ -30,9 +30,14 @@ jobs:
         run: |
           docker version
           docker ps
+          echo "Pulling PostgreSQL image for Testcontainers..."
+          docker pull postgres:15-alpine
 
       - name: Build and Test All Services
         run: mvn clean verify
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: false
+          TESTCONTAINERS_CHECKS_DISABLE: false
 
       - name: Upload Test Reports on Failure
         if: failure()
