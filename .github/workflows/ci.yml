@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-    name: Build Project
+  test-all:
+    name: Build and Test All Services
     runs-on: ubuntu-latest
 
     steps:
@@ -22,144 +22,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build cerps-common first
-        run: mvn clean install -pl cerps-common -DskipTests
+      - name: Build and Test All
+        run: mvn clean verify
 
-      - name: Build All Services
-        run: mvn clean install -DskipTests
-
-  unit-tests:
-    name: Unit Tests - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - currency-service
-          - user-service
-          - analytics-service
-          - api-gateway
-          - cerps-common
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Build cerps-common
-        run: mvn install -pl cerps-common -DskipTests
-
-      - name: Run Unit Tests
-        run: mvn test -pl ${{ matrix.service }}
-
-      - name: Upload Test Reports on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-reports-${{ matrix.service }}
-          path: ${{ matrix.service }}/target/surefire-reports/
-          retention-days: 7
-
-  integration-tests:
-    name: Integration Tests - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - user-service
-          - analytics-service
-          - api-gateway
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Build cerps-common
-        run: mvn install -pl cerps-common -DskipTests
-
-      - name: Run Integration Tests
-        run: mvn verify -pl ${{ matrix.service }}
-
-      - name: Upload Test Reports on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-reports-${{ matrix.service }}
-          path: |
-            ${{ matrix.service }}/target/surefire-reports/
-            ${{ matrix.service }}/target/failsafe-reports/
-          retention-days: 7
-
-  wiremock-tests:
-    name: Currency Service Integration Tests
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Build cerps-common
-        run: mvn install -pl cerps-common -DskipTests
-
-      - name: Run Currency Service Tests
-        run: mvn verify -pl currency-service -DforkCount=1 -DreuseForks=false -Dfailsafe.rerunFailingTestsCount=2
-
-      - name: Upload Test Reports on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wiremock-test-reports
-          path: |
-            currency-service/target/surefire-reports/
-            currency-service/target/failsafe-reports/
-          retention-days: 7
-
-  coverage:
-    name: Generate Coverage Report
-    runs-on: ubuntu-latest
-    needs: [integration-tests, wiremock-tests]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Build cerps-common
-        run: mvn install -pl cerps-common -DskipTests
-
-      - name: Run All Tests with Coverage
-        run: mvn clean verify jacoco:report
+      - name: Generate Coverage
+        run: mvn jacoco:report
 
       - name: Upload Coverage Reports
         uses: actions/upload-artifact@v4
@@ -167,6 +34,16 @@ jobs:
           name: coverage-reports
           path: '**/target/site/jacoco/'
           retention-days: 30
+
+      - name: Upload Test Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7
 
       - name: Display Coverage Summary
         run: |
