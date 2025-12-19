@@ -19,8 +19,7 @@ spring:
 
   sql:
     init:
-      mode: always
-      data-locations: classpath:test-data.sql
+      mode: never
 
   liquibase:
     enabled: false
