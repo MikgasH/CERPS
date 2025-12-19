@@ -1,13 +1,22 @@
-package com.example.cerpshashkin.unit.config;
+package com.example.cerpshashkin.integration.security;
 
+import com.example.cerpshashkin.service.ExchangeRateService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.util.Currency;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,20 +24,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class SecurityConfigTest {
+class SecurityConfigIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    // ============== Public Endpoints ==============
+    @MockitoBean
+    private ExchangeRateService exchangeRateService;
+
+    @BeforeEach
+    void setUp() {
+        when(exchangeRateService.getExchangeRate(any(Currency.class), any(Currency.class)))
+                .thenReturn(Optional.of(BigDecimal.valueOf(1.18)));
+    }
 
     @Test
     void actuatorEndpoints_ShouldBeAccessibleWithoutAuth() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
     }
-
-    // ============== Currency Endpoints - GET ==============
 
     @Test
     void getCurrencies_WithoutAuth_ShouldReturnForbidden() throws Exception {
@@ -57,8 +71,6 @@ class SecurityConfigTest {
                 .andExpect(status().isOk());
     }
 
-    // ============== Currency Endpoints - POST ==============
-
     @Test
     void addCurrency_WithoutAuth_ShouldReturnForbidden() throws Exception {
         mockMvc.perform(post("/api/v1/currencies")
@@ -85,8 +97,6 @@ class SecurityConfigTest {
                 .andExpect(status().isForbidden());
     }
 
-    // ============== Currency Refresh ==============
-
     @Test
     void refreshCurrencies_WithoutAuth_ShouldReturnForbidden() throws Exception {
         mockMvc.perform(post("/api/v1/currencies/refresh"))
@@ -99,8 +109,6 @@ class SecurityConfigTest {
         mockMvc.perform(post("/api/v1/currencies/refresh"))
                 .andExpect(status().isForbidden());
     }
-
-    // ============== Currency Convert ==============
 
     @Test
     void convertCurrency_WithoutAuth_ShouldReturnForbidden() throws Exception {
