@@ -24,4 +24,3 @@ public class TestConfig {
         return new SimpleMeterRegistry();
     }
 }
-
