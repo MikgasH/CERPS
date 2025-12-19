@@ -7,9 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  test-all:
-    name: Build and Test All Services
+  test:
+    name: Build and Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -22,7 +23,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and Test All
+      - name: Build and Test
         run: mvn clean verify
 
       - name: Generate Coverage
@@ -44,13 +45,3 @@ jobs:
             **/target/surefire-reports/
             **/target/failsafe-reports/
           retention-days: 7
-
-      - name: Display Coverage Summary
-        run: |
-          echo "Coverage Summary:"
-          for service in api-gateway currency-service user-service analytics-service; do
-            if [ -f "$service/target/site/jacoco/index.html" ]; then
-              echo "$service:"
-              grep -A 3 "Total" "$service/target/site/jacoco/index.html" | head -4
-            fi
-          done

@@ -37,18 +37,11 @@ scheduling:
 
 api:
   fixer:
-    url: http://dummy-fixer-url
     access-key: test-fixer-key
   exchangerates:
-    url: http://dummy-exchangerates-url
     access-key: test-exchangerates-key
   currencyapi:
-    url: http://dummy-currencyapi-url
     access-key: test-currencyapi-key
-  mock1:
-    url: http://dummy-mock1-url
-  mock2:
-    url: http://dummy-mock2-url
 
 jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tdGVzdGluZy1wdXJwb3Nlcy1vbmx5LTEyMzQ1Njc4OTA=
@@ -56,3 +49,8 @@ jwt:
 
 encryption:
   master-key: xtCPEriABFzNjq7KmLK5BmGt8vbWPq0PcB1C7Y8DxNo=
+
+logging:
+  level:
+    com.example.cerpshashkin: WARN
+    com.github.tomakehurst.wiremock: ERROR
