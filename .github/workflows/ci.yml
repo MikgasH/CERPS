@@ -22,16 +22,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Build cerps-common first
+        run: mvn clean install -pl cerps-common -DskipTests
+
       - name: Build All Services
         run: mvn clean install -DskipTests
-
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
 
   unit-tests:
     name: Unit Tests - ${{ matrix.service }}
@@ -57,6 +52,9 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Build cerps-common
+        run: mvn install -pl cerps-common -DskipTests
 
       - name: Run Unit Tests
         run: mvn test -pl ${{ matrix.service }}
@@ -92,6 +90,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Build cerps-common
+        run: mvn install -pl cerps-common -DskipTests
+
       - name: Run Integration Tests
         run: mvn verify -pl ${{ matrix.service }}
 
@@ -122,12 +123,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Build cerps-common
+        run: mvn install -pl cerps-common -DskipTests
+
       - name: Run Currency Service Tests
-        run: |
-          mvn verify -pl currency-service \
-            -DforkCount=1 \
-            -DreuseForks=false \
-            -Dfailsafe.rerunFailingTestsCount=2
+        run: mvn verify -pl currency-service -DforkCount=1 -DreuseForks=false -Dfailsafe.rerunFailingTestsCount=2
 
       - name: Upload Test Reports on Failure
         if: failure()
@@ -154,6 +154,9 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Build cerps-common
+        run: mvn install -pl cerps-common -DskipTests
 
       - name: Run All Tests with Coverage
         run: mvn clean verify jacoco:report
