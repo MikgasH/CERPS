@@ -1,19 +1,21 @@
 package com.example.cerps.common.dto;
 
+import com.example.cerps.common.validation.ValidCurrency;
+import com.example.cerps.common.validation.ValidPeriod;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 
 public record TrendsRequest(
+
         @NotBlank(message = "From currency is required")
-        @Pattern(regexp = "^[A-Z]{3}$", message = "From currency must be a 3-letter code")
+        @ValidCurrency(message = "Invalid source currency code")
         String from,
 
         @NotBlank(message = "To currency is required")
-        @Pattern(regexp = "^[A-Z]{3}$", message = "To currency must be a 3-letter code")
+        @ValidCurrency(message = "Invalid target currency code")
         String to,
 
         @NotBlank(message = "Period is required")
-        @Pattern(regexp = "^\\d+[HDMY]$", message = "Period must be in format: 1H, 7D, 1M, 1Y")
+        @ValidPeriod
         String period
 ) {
 }

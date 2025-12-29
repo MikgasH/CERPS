@@ -18,7 +18,8 @@ target/
 .gitattributes
 
 *.md
-docs/
+api-docs/
+diploma-docs/
 
 *.log
 logs/

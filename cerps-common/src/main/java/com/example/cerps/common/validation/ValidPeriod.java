@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidPeriod {
 
-    String message() default "Invalid period. Must be one of: WEEK, MONTH, YEAR";
+    String message() default "Invalid period format. Use: 12H-8760H, 1D-365D, 1M-12M, or 1Y";
 
     Class<?>[] groups() default {};
 

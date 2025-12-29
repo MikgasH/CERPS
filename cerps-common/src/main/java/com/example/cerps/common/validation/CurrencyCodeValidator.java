@@ -9,23 +9,17 @@ import java.util.stream.Collectors;
 
 public class CurrencyCodeValidator implements ConstraintValidator<ValidCurrency, String> {
 
-    private static final Set<String> VALID_CURRENCY_CODES = Currency.getAvailableCurrencies()
-            .stream()
-            .map(Currency::getCurrencyCode)
-            .collect(Collectors.toSet());
-
     @Override
-    public void initialize(ValidCurrency constraintAnnotation) {
-        ConstraintValidator.super.initialize(constraintAnnotation);
-    }
-
-    @Override
-    public boolean isValid(String value, ConstraintValidatorContext context) {
-        if (value == null) {
+    public boolean isValid(final String value, final ConstraintValidatorContext context) {
+        if (value == null || value.trim().isEmpty()) {
             return false;
         }
 
-        String upperCaseValue = value.toUpperCase().trim();
-        return VALID_CURRENCY_CODES.contains(upperCaseValue);
+        try {
+            Currency.getInstance(value.trim().toUpperCase());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
