@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: create-user-roles-table  ← ПРАВИЛЬНО
+      id: create-user-roles-table
       author: hashkin
       changes:
         - createTable:

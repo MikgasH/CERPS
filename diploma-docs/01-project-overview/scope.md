@@ -60,7 +60,6 @@ Default currencies configured via Liquibase migration:
 | CNY | Chinese Yuan | China |
 | SEK | Swedish Krona | Sweden |
 | NZD | New Zealand Dollar | New Zealand |
-| BYN | Belarusian Ruble | Belarus |
 
 *Additional currencies can be added by administrators via API.*
 

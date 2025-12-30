@@ -290,11 +290,22 @@ databaseChangeLog:
 
 ### Database Users
 
-| User | Database | Permissions |
-|------|----------|-------------|
-| postgres | users_db | ALL |
-| postgres | currency_db | ALL |
-| analytics_readonly | currency_db | SELECT only |
+| User | Database | Permissions | Setup Method |
+|------|----------|-------------|--------------|
+| postgres | users_db | ALL | Default |
+| postgres | currency_db | ALL | Default |
+| analytics_readonly | currency_db | SELECT only | Docker init-script |
+
+**Note:** The `analytics_readonly` user is created via Docker init-script (`init-scripts/currency-init.sql`), not via Liquibase migration. This is intentional as user management is a database administration task, not application schema management.
+
+```sql
+-- init-scripts/currency-init.sql
+CREATE ROLE analytics_readonly WITH LOGIN PASSWORD 'analytics_readonly_pass';
+GRANT CONNECT ON DATABASE currency_db TO analytics_readonly;
+GRANT USAGE ON SCHEMA public TO analytics_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_readonly;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_readonly;
+```
 
 ## Connection Configuration
 
