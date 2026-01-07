@@ -8,13 +8,13 @@
 Microservices-based currency exchange system with comprehensive automated testing.
 
 **Test Coverage Results:**
-- Currency Service: 89%
+- Currency Service: 90%
 - User Service: 83%
-- Analytics Service: 81%
+- Analytics Service: 88%
 - API Gateway: 94%
-- Average: 87% (Required: 70%)
+- Average: 89% (Required: 70%)
 
-**Total Tests:** 487  
+**Total Tests:** 509  
 **Execution Time:** ~6 minutes
 
 ---
@@ -245,11 +245,11 @@ void testName() {
 
 | Service | Tests | Coverage | Execution Time |
 |---------|-------|----------|----------------|
-| Currency Service | 315 | 89% | ~3 min |
-| User Service | 114 | 83% | ~46 sec |
-| Analytics Service | 34 | 81% | ~1 min |
-| API Gateway | 24 | 94% | ~1 min |
-| TOTAL | 487 | 87% | ~6 min |
+| Currency Service | 316   | 90%      | ~3 min |
+| User Service | 114   | 83%      | ~46 sec |
+| Analytics Service | 55    | 88%      | ~1 min |
+| API Gateway | 24    | 94%      | ~1 min |
+| TOTAL | 509   | 89%      | ~6 min |
 
 All tests pass locally with zero failures.
 
@@ -297,9 +297,9 @@ open <service-name>/target/site/jacoco/index.html
 
 ## 10. Conclusion
 
-The CERPS project achieves 87% test coverage across all microservices, exceeding the required 70% threshold. The test suite includes:
+The CERPS project achieves 89% test coverage across all microservices, exceeding the required 70% threshold. The test suite includes:
 
-- 487 automated tests (Unit + Integration)
+- 509 automated tests (Unit + Integration)
 - Comprehensive external API mocking with WireMock
 - Full authentication flow testing
 - Security and authorization validation
@@ -308,6 +308,6 @@ The CERPS project achieves 87% test coverage across all microservices, exceeding
 
 All critical business logic, API endpoints, and security mechanisms are thoroughly tested.
 
-Repository: https://github.com/MikgasH/exchange/tree/feature/microservices-architecture
+Repository: https://github.com/MikgasH/exchange
 Coverage Reports: Available in target/site/jacoco/ after running mvn verify
 ```

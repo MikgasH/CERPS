@@ -2,13 +2,13 @@
 
 ## Overview
 
-| Aspect | Details |
-|--------|---------|
+| Aspect | Details                       |
+|--------|-------------------------------|
 | **Criterion** | Automated Tests ≥70% Coverage |
-| **Achieved Coverage** | **87%** (exceeds requirement) |
-| **Total Tests** | 487 |
-| **Execution Time** | ~6 minutes |
-| **Framework** | JUnit 5, Mockito, WireMock |
+| **Achieved Coverage** | **89%** (exceeds requirement) |
+| **Total Tests** | 509                           |
+| **Execution Time** | ~6 minutes                    |
+| **Framework** | JUnit 5, Mockito, WireMock    |
 
 ## Coverage Summary
 
@@ -17,13 +17,13 @@
 │                    Test Coverage by Service                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Currency Service    ████████████████████░░░  89%  (315 tests)  │
+│  Currency Service    ████████████████████░░░  90%  (316 tests)  │
 │  API Gateway         ███████████████████████  94%  (24 tests)   │
 │  User Service        ████████████████░░░░░░░  83%  (114 tests)  │
-│  Analytics Service   ████████████████░░░░░░░  81%  (34 tests)   │
+│  Analytics Service   ████████████████░░░░░░░  88%  (55 tests)   │
 │                                                                  │
 │  ─────────────────────────────────────────────────────────────  │
-│  AVERAGE             █████████████████░░░░░░  87%  (487 tests)  │
+│  AVERAGE             █████████████████░░░░░░  89%  (509 tests)  │
 │  REQUIRED            ██████████████░░░░░░░░░  70%               │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -31,13 +31,13 @@
 
 ## Coverage by Service
 
-| Service | Tests | Line Coverage | Branch Coverage | Status |
-|---------|-------|---------------|-----------------|--------|
-| Currency Service | 315 | 89% | 85% | Exceeds |
-| API Gateway | 24 | 94% | 90% | Exceeds |
-| User Service | 114 | 83% | 80% | Exceeds |
-| Analytics Service | 34 | 81% | 78% | Exceeds |
-| **Total** | **487** | **87%** | **83%** | **Exceeds 70%** |
+| Service | Tests   | Line Coverage | Branch Coverage | Status |
+|---------|---------|---------------|-----------------|--------|
+| Currency Service | 316     | 90%           | 72%             | Exceeds |
+| API Gateway | 24      | 94%           | 90%             | Exceeds |
+| User Service | 114     | 83%           | 80%             | Exceeds |
+| Analytics Service | 55      | 88%           | 72%             | Exceeds |
+| **Total** | **509** | **89%**       | **79%**         | **Exceeds 70%** |
 
 ## Testing Strategy
 
@@ -51,7 +51,7 @@
                    │ Integration │  ~150 tests
                    │   Tests     │  (API, DB, Security)
                   ┌┴─────────────┴┐
-                  │  Unit Tests   │  ~337 tests
+                  │  Unit Tests   │  ~359 tests
                   │ (Fast, Isolated)│  (Business logic)
                   └───────────────┘
 ```
@@ -60,9 +60,9 @@
 
 | Type | Purpose | Framework | Count |
 |------|---------|-----------|-------|
-| Unit | Business logic, calculations | JUnit 5, Mockito | ~337 |
-| Integration | API endpoints, database | Spring Boot Test | ~150 |
-| External API | Provider mocking | WireMock | ~50 |
+| Unit | Business logic, calculations | JUnit 5, Mockito | ~359  |
+| Integration | API endpoints, database | Spring Boot Test | ~150  |
+| External API | Provider mocking | WireMock | ~50   |
 
 ## Technology Stack
 
@@ -455,10 +455,10 @@ open target/site/jacoco/index.html
 
 ## Summary
 
-| Metric | Value | Requirement | Status |
-|--------|-------|-------------|--------|
-| Line Coverage | 87% | ≥70% | Exceeds |
-| Branch Coverage | 83% | - | Good |
-| Total Tests | 487 | - | Comprehensive |
-| Execution Time | ~6 min | - | Acceptable |
+| Metric | Value              | Requirement | Status |
+|--------|--------------------|-------------|--------|
+| Line Coverage | 89%                | ≥70% | Exceeds |
+| Branch Coverage | 79%                | - | Good |
+| Total Tests | 509                | - | Comprehensive |
+| Execution Time | ~6 min             | - | Acceptable |
 | Test Types | Unit + Integration | Both required | Complete |

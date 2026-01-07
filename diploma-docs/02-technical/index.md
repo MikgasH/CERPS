@@ -75,12 +75,12 @@ This section covers the technical architecture, technology stack, and implementa
 
 ## Criteria Summary
 
-| # | Criterion | Status | Key Implementation |
-|---|-----------|--------|-------------------|
+| # | Criterion | Status | Key Implementation                             |
+|---|-----------|--------|------------------------------------------------|
 | 1 | Back-end | Completed | Spring Boot 3.5.6, layered architecture, SOLID |
-| 2 | Cryptography | Completed | JWT (HS256), BCrypt, AES-256-GCM |
-| 3 | Database | Completed | PostgreSQL 15, Liquibase, optimized indexes |
-| 4 | Microservices | Completed | 4 services + 2 mock, API Gateway pattern |
-| 5 | Containerization | Completed | Docker Compose, 9 containers, health checks |
-| 6 | API Documentation | Completed | OpenAPI 3.0, Swagger UI, 12 doc files |
-| 7 | Testing (70% min) | Completed | 87% coverage, 487 tests, JUnit 5 |
+| 2 | Cryptography | Completed | JWT (HS256), BCrypt, AES-256-GCM               |
+| 3 | Database | Completed | PostgreSQL 15, Liquibase, optimized indexes    |
+| 4 | Microservices | Completed | 4 services + 2 mock, API Gateway pattern       |
+| 5 | Containerization | Completed | Docker Compose, 9 containers, health checks    |
+| 6 | API Documentation | Completed | OpenAPI 3.0, Swagger UI, 12 doc files          |
+| 7 | Testing (70% min) | Completed | 89% coverage, 509 tests, JUnit 5               |
