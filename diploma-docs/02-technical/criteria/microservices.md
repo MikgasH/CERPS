@@ -290,8 +290,8 @@ Docker Compose DNS-based discovery:
 
 | Metric | Value |
 |--------|-------|
-| Total Services | 6 |
-| Main Business Services | 4 |
-| Mock/Fallback Services | 2 |
-| Databases | 2 |
-| Total Containers | 9 |
+| Total Services | 6     |
+| Main Business Services | 4     |
+| Mock/Fallback Services | 2     |
+| Databases | 2     |
+| Total Containers | 8     |
