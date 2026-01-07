@@ -63,15 +63,22 @@ Default currencies configured via Liquibase migration:
 
 *Additional currencies can be added by administrators via API.*
 
-## External Dependencies
+### External Dependencies (Third-Party APIs)
 
-| Provider | Purpose | Fallback |
-|----------|---------|----------|
-| Fixer.io | Primary exchange rates | Mock Service 1 |
-| ExchangeRatesAPI | Secondary rates | Mock Service 2 |
-| CurrencyAPI | Tertiary rates | Median of available |
-| Mock Service 1 | Fallback provider | Mock Service 2 |
-| Mock Service 2 | Final fallback | Error response |
+| Dependency | Type | Owner |
+|------------|------|-------|
+| Fixer.io API | External | Fixer.io |
+| ExchangeRatesAPI | External | ExchangeRatesAPI.io |
+| CurrencyAPI | External | CurrencyAPI.com |
+
+### Internal Components
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| Mock Provider 1 | Internal | Simulates Fixer.io responses for development/testing |
+| Mock Provider 2 | Internal | Simulates ExchangeRatesAPI responses for development/testing |
+
+> **Note:** Mock providers are internal microservices that simulate external API responses. They are used during development and testing when real API access is unavailable or rate-limited. They are NOT external dependencies.
 
 ## Constraints
 

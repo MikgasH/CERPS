@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Currency;
 import java.util.List;
 import java.util.Map;
@@ -32,20 +32,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-    private static final String LOG_CACHE_HIT_DIRECT = "Cache HIT: {} -> {} (direct)";
-    private static final String LOG_CACHE_HIT_INVERSE = "Cache HIT: {} -> {} (inverse)";
-    private static final String LOG_CACHE_HIT_CROSS = "Cache HIT: {} -> {} (cross-rate via {})";
+    private static final String LOG_CACHE_HIT = "Cache HIT: {} -> {} ({})";
     private static final String LOG_CACHE_MISS = "Cache MISS: {} -> {}";
-    private static final String LOG_DB_HIT_DIRECT = "Database HIT: {} -> {} (direct)";
-    private static final String LOG_DB_HIT_INVERSE = "Database HIT: {} -> {} (inverse)";
-    private static final String LOG_DB_HIT_CROSS = "Database HIT: {} -> {} (cross-rate via {})";
+    private static final String LOG_DB_HIT = "Database HIT: {} -> {} ({})";
     private static final String LOG_PROVIDERS_FALLBACK = "Fetching from providers as fallback";
     private static final String LOG_ERROR_REFRESH_RATES = "Failed to refresh exchange rates";
-    private static final String LOG_INFO_REFRESHING_RATES = "Refreshing exchange rates from providers";
-    private static final String LOG_INFO_RATES_REFRESHED = "Exchange rates refreshed. Saved {} rates to database";
+    private static final String LOG_REFRESHING_RATES = "Refreshing exchange rates from providers";
+    private static final String LOG_RATES_REFRESHED = "Exchange rates refreshed. Saved {} rates to database";
     private static final String LOG_ERROR_PROVIDERS_FETCH = "Failed to get exchange rates from providers";
-    private static final String ERROR_REFRESH_RATES_MESSAGE = "Failed to refresh exchange rates: ";
-    private static final String UNSUCCESSFUL_RESPONSE = "Provider returned unsuccessful response";
+
+    private static final String ERROR_REFRESH_RATES = "Failed to refresh exchange rates: ";
+    private static final String ERROR_UNSUCCESSFUL_RESPONSE = "Provider returned unsuccessful response";
+
+    private static final String RATE_TYPE_DIRECT = "direct";
+    private static final String RATE_TYPE_INVERSE = "inverse";
+    private static final String RATE_TYPE_CROSS_PREFIX = "cross via ";
+
     private static final int SCALE = 6;
     private static final int MAX_AGE_HOURS = 6;
 
@@ -58,15 +60,9 @@ public class ExchangeRateService {
     private final SupportedCurrencyRepository supportedCurrencyRepository;
 
     public Optional<BigDecimal> getExchangeRate(final Currency from, final Currency to) {
-        return cache.getRate(from, to)
-                .map(cachedRate -> {
-                    log.info(LOG_CACHE_HIT_DIRECT, from.getCurrencyCode(), to.getCurrencyCode());
-                    return cachedRate.rate();
-                })
-                .or(() -> calculateInverseFromCache(from, to))
-                .or(() -> calculateCrossRateFromCache(from, to))
+        return getFromCache(from, to)
                 .or(() -> {
-                    log.warn(LOG_CACHE_MISS, from.getCurrencyCode(), to.getCurrencyCode());
+                    log.info(LOG_CACHE_MISS, from.getCurrencyCode(), to.getCurrencyCode());
                     return getFromDatabase(from, to);
                 })
                 .or(() -> {
@@ -75,15 +71,70 @@ public class ExchangeRateService {
                 });
     }
 
+    private Optional<BigDecimal> getFromCache(final Currency from, final Currency to) {
+        Optional<BigDecimal> direct = cache.getRate(from, to)
+                .map(cached -> {
+                    logCacheHit(from, to, RATE_TYPE_DIRECT);
+                    return cached.rate();
+                });
+
+        if (direct.isPresent()) {
+            return direct;
+        }
+
+        Optional<BigDecimal> inverse = cache.getRate(to, from)
+                .map(cached -> {
+                    logCacheHit(from, to, RATE_TYPE_INVERSE);
+                    return BigDecimal.ONE.divide(cached.rate(), SCALE, RoundingMode.HALF_UP);
+                });
+
+        if (inverse.isPresent()) {
+            return inverse;
+        }
+
+        Currency baseCurrency = Currency.getInstance(baseCurrencyCode);
+        Optional<CachedRate> fromRate = cache.getRate(baseCurrency, from);
+        Optional<CachedRate> toRate = cache.getRate(baseCurrency, to);
+
+        if (fromRate.isPresent() && toRate.isPresent()) {
+            logCacheHit(from, to, RATE_TYPE_CROSS_PREFIX + baseCurrencyCode);
+            return Optional.of(toRate.get().rate()
+                    .divide(fromRate.get().rate(), SCALE, RoundingMode.HALF_UP));
+        }
+
+        return Optional.empty();
+    }
+
+    private void logCacheHit(final Currency from, final Currency to, final String rateType) {
+        log.info(LOG_CACHE_HIT, from.getCurrencyCode(), to.getCurrencyCode(), rateType);
+    }
+
+    private Optional<BigDecimal> getFromDatabase(final Currency from, final Currency to) {
+        Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
+
+        return exchangeRateRepository.findBestRate(
+                from.getCurrencyCode(),
+                to.getCurrencyCode(),
+                baseCurrencyCode,
+                maxAge
+        ).map(result -> {
+            BigDecimal rate = result.getRate();
+            cache.putRate(from, to, rate);
+            log.info(LOG_DB_HIT, from.getCurrencyCode(), to.getCurrencyCode(),
+                    result.getRateType().toLowerCase());
+            return rate;
+        });
+    }
+
     @Transactional
     public void refreshRates() {
-        log.info(LOG_INFO_REFRESHING_RATES);
+        log.info(LOG_REFRESHING_RATES);
 
         try {
             final CurrencyExchangeResponse response = providerService.getLatestRatesFromProviders();
 
             if (!response.success()) {
-                throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES_MESSAGE + UNSUCCESSFUL_RESPONSE);
+                throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES + ERROR_UNSUCCESSFUL_RESPONSE);
             }
 
             cache.clearCache();
@@ -119,14 +170,14 @@ public class ExchangeRateService {
                     )
             );
 
-            log.info(LOG_INFO_RATES_REFRESHED, entities.size());
+            log.info(LOG_RATES_REFRESHED, entities.size());
 
         } catch (ExchangeRateNotAvailableException e) {
             log.error(LOG_ERROR_REFRESH_RATES, e);
             throw e;
         } catch (Exception e) {
             log.error(LOG_ERROR_REFRESH_RATES, e);
-            throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES_MESSAGE + e.getMessage());
+            throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES + e.getMessage());
         }
     }
 
@@ -135,110 +186,6 @@ public class ExchangeRateService {
                 .ifPresent(rates -> rates.forEach((currency, rate) ->
                         cache.putRate(response.base(), currency, rate)
                 ));
-    }
-
-    private Optional<BigDecimal> getFromDatabase(final Currency from, final Currency to) {
-        Optional<BigDecimal> direct = exchangeRateRepository
-                .findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(from, to)
-                .filter(this::isNotTooOld)
-                .map(entity -> {
-                    final BigDecimal rate = entity.getRate();
-                    cache.putRate(from, to, rate);
-                    log.info(LOG_DB_HIT_DIRECT, from.getCurrencyCode(), to.getCurrencyCode());
-                    return rate;
-                });
-
-        if (direct.isPresent()) {
-            return direct;
-        }
-
-        Optional<BigDecimal> inverse = exchangeRateRepository
-                .findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(to, from)
-                .filter(this::isNotTooOld)
-                .map(entity -> {
-                    final BigDecimal rate = BigDecimal.ONE.divide(
-                            entity.getRate(),
-                            SCALE,
-                            RoundingMode.HALF_UP
-                    );
-                    cache.putRate(from, to, rate);
-                    log.info(LOG_DB_HIT_INVERSE, from.getCurrencyCode(), to.getCurrencyCode());
-                    return rate;
-                });
-
-        if (inverse.isPresent()) {
-            return inverse;
-        }
-
-        return calculateCrossRateFromDatabase(from, to);
-    }
-
-    private Optional<BigDecimal> calculateCrossRateFromDatabase(
-            final Currency from,
-            final Currency to
-    ) {
-        final Currency base = Currency.getInstance(baseCurrencyCode);
-
-        final Optional<ExchangeRateEntity> fromEntity = exchangeRateRepository
-                .findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(base, from)
-                .filter(this::isNotTooOld);
-
-        final Optional<ExchangeRateEntity> toEntity = exchangeRateRepository
-                .findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(base, to)
-                .filter(this::isNotTooOld);
-
-        if (fromEntity.isPresent() && toEntity.isPresent()) {
-            final BigDecimal fromRate = fromEntity.get().getRate();
-            final BigDecimal toRate = toEntity.get().getRate();
-
-            final BigDecimal crossRate = toRate.divide(fromRate, SCALE, RoundingMode.HALF_UP);
-
-            cache.putRate(from, to, crossRate);
-            log.info(LOG_DB_HIT_CROSS, from.getCurrencyCode(), to.getCurrencyCode(), base.getCurrencyCode());
-
-            return Optional.of(crossRate);
-        }
-
-        return Optional.empty();
-    }
-
-    private boolean isNotTooOld(final ExchangeRateEntity entity) {
-        final Duration age = Duration.between(entity.getTimestamp(), Instant.now());
-        return age.toHours() < MAX_AGE_HOURS;
-    }
-
-    private Optional<BigDecimal> calculateInverseFromCache(final Currency from, final Currency to) {
-        return cache.getRate(to, from)
-                .map(reverseCachedRate -> {
-                    final BigDecimal inverseRate = BigDecimal.ONE.divide(
-                            reverseCachedRate.rate(),
-                            SCALE,
-                            RoundingMode.HALF_UP
-                    );
-                    log.info(LOG_CACHE_HIT_INVERSE, from.getCurrencyCode(), to.getCurrencyCode());
-                    return inverseRate;
-                });
-    }
-
-    private Optional<BigDecimal> calculateCrossRateFromCache(final Currency from, final Currency to) {
-        final Currency baseCurrency = Currency.getInstance(baseCurrencyCode);
-
-        final Optional<BigDecimal> fromRate = cache.getRate(baseCurrency, from)
-                .map(CachedRate::rate);
-
-        final Optional<BigDecimal> toRate = cache.getRate(baseCurrency, to)
-                .map(CachedRate::rate);
-
-        if (fromRate.isPresent() && toRate.isPresent()) {
-            final BigDecimal crossRate = toRate.get()
-                    .divide(fromRate.get(), SCALE, RoundingMode.HALF_UP);
-
-            log.info(LOG_CACHE_HIT_CROSS, from.getCurrencyCode(), to.getCurrencyCode(),
-                    baseCurrency.getCurrencyCode());
-            return Optional.of(crossRate);
-        }
-
-        return Optional.empty();
     }
 
     private Optional<BigDecimal> getExchangeRateFromProviders(final Currency from, final Currency to) {

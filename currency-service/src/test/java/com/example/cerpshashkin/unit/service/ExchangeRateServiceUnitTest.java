@@ -7,6 +7,7 @@ import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.model.CachedRate;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.repository.ExchangeRateRepository;
+import com.example.cerpshashkin.repository.RateQueryResult;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.ExchangeRateProviderService;
 import com.example.cerpshashkin.service.ExchangeRateService;
@@ -24,7 +25,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.Currency;
 import java.util.List;
 import java.util.Map;
@@ -89,12 +89,14 @@ class ExchangeRateServiceUnitTest {
     @Test
     void getExchangeRate_WithoutCacheButInDatabase_ShouldReturnFromDb() {
         BigDecimal dbRate = BigDecimal.valueOf(1.18);
-        ExchangeRateEntity entity = createEntity(EUR, USD, dbRate, Instant.now());
+        RateQueryResult queryResult = createRateQueryResult(dbRate, "DIRECT");
 
         when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
         when(cache.getRate(USD, EUR)).thenReturn(Optional.empty());
-        when(exchangeRateRepository.findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(EUR, USD))
-                .thenReturn(Optional.of(entity));
+        when(cache.getRate(EUR, EUR)).thenReturn(Optional.empty());
+        when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
+        when(exchangeRateRepository.findBestRate(eq("EUR"), eq("USD"), eq("EUR"), any(Instant.class)))
+                .thenReturn(Optional.of(queryResult));
 
         Optional<BigDecimal> result = exchangeRateService.getExchangeRate(EUR, USD);
 
@@ -104,15 +106,12 @@ class ExchangeRateServiceUnitTest {
     }
 
     @Test
-    void getExchangeRate_WithExpiredDatabaseRate_ShouldFetchFromProvider() {
-        Instant oldTimestamp = Instant.now().minus(10, ChronoUnit.HOURS);
-        ExchangeRateEntity oldEntity = createEntity(EUR, USD, BigDecimal.valueOf(1.17), oldTimestamp);
+    void getExchangeRate_WithNoDatabaseRate_ShouldFetchFromProvider() {
         BigDecimal newRate = BigDecimal.valueOf(1.18);
 
-        when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
-        when(cache.getRate(USD, EUR)).thenReturn(Optional.empty());
-        when(exchangeRateRepository.findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(EUR, USD))
-                .thenReturn(Optional.of(oldEntity));
+        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
+        when(exchangeRateRepository.findBestRate(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
 
         CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
                 EUR, TEST_DATE, Map.of(USD, newRate), false
@@ -129,9 +128,8 @@ class ExchangeRateServiceUnitTest {
     void getExchangeRate_WithoutCacheOrDatabase_ShouldCallProvider() {
         BigDecimal exchangeRate = BigDecimal.valueOf(1.18);
 
-        when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
-        when(cache.getRate(USD, EUR)).thenReturn(Optional.empty());
-        when(exchangeRateRepository.findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(any(), any()))
+        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
+        when(exchangeRateRepository.findBestRate(any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
@@ -149,7 +147,7 @@ class ExchangeRateServiceUnitTest {
     @Test
     void getExchangeRate_WithProviderFailure_ShouldReturnEmpty() {
         when(cache.getRate(any(), any())).thenReturn(Optional.empty());
-        when(exchangeRateRepository.findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(any(), any()))
+        when(exchangeRateRepository.findBestRate(any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
         when(providerService.getLatestRatesFromProviders()).thenThrow(new RuntimeException("Provider failed"));
 
@@ -381,6 +379,57 @@ class ExchangeRateServiceUnitTest {
 
         verify(cache, never()).putRate(any(), any(), any());
         verify(exchangeRateRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void getExchangeRate_WithDatabaseInverseRate_ShouldReturnFromDb() {
+        BigDecimal dbRate = BigDecimal.valueOf(0.847);
+        RateQueryResult queryResult = createRateQueryResult(dbRate, "INVERSE");
+
+        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
+        when(exchangeRateRepository.findBestRate(eq("USD"), eq("EUR"), eq("EUR"), any(Instant.class)))
+                .thenReturn(Optional.of(queryResult));
+
+        Optional<BigDecimal> result = exchangeRateService.getExchangeRate(USD, EUR);
+
+        assertThat(result).contains(dbRate);
+        verify(cache).putRate(USD, EUR, dbRate);
+        verifyNoInteractions(providerService);
+    }
+
+    @Test
+    void getExchangeRate_WithDatabaseCrossRate_ShouldReturnFromDb() {
+        BigDecimal crossRate = BigDecimal.valueOf(0.737288);
+        RateQueryResult queryResult = createRateQueryResult(crossRate, "CROSS");
+
+        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
+        when(exchangeRateRepository.findBestRate(eq("USD"), eq("GBP"), eq("EUR"), any(Instant.class)))
+                .thenReturn(Optional.of(queryResult));
+
+        Optional<BigDecimal> result = exchangeRateService.getExchangeRate(USD, GBP);
+
+        assertThat(result).contains(crossRate);
+        verify(cache).putRate(USD, GBP, crossRate);
+        verifyNoInteractions(providerService);
+    }
+
+    private RateQueryResult createRateQueryResult(BigDecimal rate, String rateType) {
+        return new RateQueryResult() {
+            @Override
+            public BigDecimal getRate() {
+                return rate;
+            }
+
+            @Override
+            public String getRateType() {
+                return rateType;
+            }
+
+            @Override
+            public Instant getTimestamp() {
+                return Instant.now();
+            }
+        };
     }
 
     private ExchangeRateEntity createEntity(Currency base, Currency target, BigDecimal rate, Instant timestamp) {

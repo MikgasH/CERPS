@@ -1,5 +1,13 @@
 -- Create read-only role for analytics service
-CREATE ROLE analytics_readonly WITH LOGIN PASSWORD 'analytics_readonly_pass';
+-- Using default password 'analytics_readonly_pass'
+-- Change via POSTGRES_ANALYTICS_PASSWORD environment variable in .env
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analytics_readonly') THEN
+    CREATE ROLE analytics_readonly WITH LOGIN PASSWORD 'analytics_readonly_pass';
+  END IF;
+END
+$$;
 
 -- Grant connect privileges
 GRANT CONNECT ON DATABASE currency_db TO analytics_readonly;

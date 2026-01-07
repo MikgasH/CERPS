@@ -14,7 +14,7 @@ services:
       - postgres_currency_data:/var/lib/postgresql/data
       - ./init-scripts/currency-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d currency_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +42,7 @@ services:
     volumes:
       - postgres_users_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,9 +103,9 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/currency_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/${POSTGRES_CURRENCY_DB:-currency_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       USER_SERVICE_URL: http://user-service:8081
       MOCK_SERVICE_1_URL: http://mock-service-1:8083
       MOCK_SERVICE_2_URL: http://mock-service-2:8084
@@ -151,9 +151,9 @@ services:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/currency_db
-      SPRING_DATASOURCE_USERNAME: analytics_readonly
-      SPRING_DATASOURCE_PASSWORD: analytics_readonly_pass
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/${POSTGRES_CURRENCY_DB:-currency_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_ANALYTICS_USER:-analytics_readonly}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
       USER_SERVICE_URL: http://user-service:8081
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate

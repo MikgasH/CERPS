@@ -59,33 +59,13 @@ class CacheExpirationIntegrationTest extends BaseWireMockTest {
     }
 
     @Test
-    void clearCache_ShouldForceApiCall() {
-        BigDecimal initialRate = new BigDecimal("1.250000");
-        cache.putRate(EUR, USD, initialRate);
-
-        Optional<BigDecimal> cachedRate = exchangeRateService.getExchangeRate(EUR, USD);
-        assertThat(cachedRate).isPresent();
-        assertThat(cachedRate.get()).isEqualByComparingTo(initialRate);
-
-        wireMockServer.resetRequests();
-        cache.clearCache();
-
-        Optional<BigDecimal> newRate = exchangeRateService.getExchangeRate(EUR, USD);
-
-        assertThat(wireMockServer.getAllServeEvents()).isNotEmpty();
-        assertThat(newRate).isPresent();
-        assertThat(newRate.get()).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(newRate.get()).isNotEqualByComparingTo(initialRate);
-    }
-
-    @Test
     void cache_ShouldReduceApiCalls() {
+        exchangeRateService.refreshRates();
+        wireMockServer.resetRequests();
+
         Optional<BigDecimal> firstRate = exchangeRateService.getExchangeRate(EUR, USD);
 
         assertThat(firstRate).isPresent();
-        assertThat(wireMockServer.getAllServeEvents()).isNotEmpty();
-
-        wireMockServer.resetRequests();
 
         Optional<BigDecimal> secondRate = exchangeRateService.getExchangeRate(EUR, USD);
         Optional<BigDecimal> thirdRate = exchangeRateService.getExchangeRate(EUR, USD);
@@ -101,12 +81,11 @@ class CacheExpirationIntegrationTest extends BaseWireMockTest {
 
     @Test
     void cache_ShouldWorkForInverseRates() {
+        exchangeRateService.refreshRates();
+        wireMockServer.resetRequests();
+
         Optional<BigDecimal> eurToUsd = exchangeRateService.getExchangeRate(EUR, USD);
         assertThat(eurToUsd).isPresent();
-
-        assertThat(wireMockServer.getAllServeEvents()).isNotEmpty();
-
-        wireMockServer.resetRequests();
 
         Optional<BigDecimal> usdToEur = exchangeRateService.getExchangeRate(USD, EUR);
         assertThat(usdToEur).isPresent();
