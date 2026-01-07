@@ -24,7 +24,6 @@ public class CurrencyService {
     private static final String LOG_ADD_CURRENCY = "Adding currency to database: {}";
     private static final String LOG_CURRENCY_ADDED = "Currency {} added successfully";
     private static final String LOG_CURRENCY_ALREADY_EXISTS = "Currency {} already exists";
-    private static final String LOG_CONVERT_REQUEST = "Processing currency conversion request";
     private static final String LOG_REFRESH_RATES = "Refreshing exchange rates";
     private static final String ERROR_CURRENCY_NULL_OR_EMPTY = "Currency code cannot be null or empty";
 

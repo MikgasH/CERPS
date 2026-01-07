@@ -156,7 +156,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
       USER_SERVICE_URL: http://user-service:8081
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
       API_GATEWAY_URL: http://localhost:8000
     depends_on:
       postgres-currency:

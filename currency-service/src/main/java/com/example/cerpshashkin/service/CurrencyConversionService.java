@@ -2,7 +2,10 @@ package com.example.cerpshashkin.service;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
+import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
+import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
+import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Currency;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -25,6 +29,7 @@ public class CurrencyConversionService {
     private static final int SCALE = 6;
 
     private final ExchangeRateService exchangeRateService;
+    private final SupportedCurrencyRepository supportedCurrencyRepository;
     private final MeterRegistry meterRegistry;
 
     private Counter successCounter;
@@ -51,8 +56,15 @@ public class CurrencyConversionService {
             try {
                 log.info(LOG_CONVERTING, request.amount(), request.from(), request.to());
 
-                final Currency fromCurrency = Currency.getInstance(request.from().toUpperCase());
-                final Currency toCurrency = Currency.getInstance(request.to().toUpperCase());
+                final String fromCode = request.from().toUpperCase();
+                final String toCode = request.to().toUpperCase();
+
+                // Validate currencies are supported
+                validateSupportedCurrency(fromCode);
+                validateSupportedCurrency(toCode);
+
+                final Currency fromCurrency = Currency.getInstance(fromCode);
+                final Currency toCurrency = Currency.getInstance(toCode);
 
                 if (fromCurrency.equals(toCurrency)) {
                     successCounter.increment();
@@ -100,5 +112,16 @@ public class CurrencyConversionService {
                 convertedAmount,
                 rate
         );
+    }
+
+    private void validateSupportedCurrency(final String currencyCode) {
+        if (!supportedCurrencyRepository.existsByCurrencyCode(currencyCode)) {
+            final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
+                    .stream()
+                    .map(SupportedCurrencyEntity::getCurrencyCode)
+                    .sorted()
+                    .toList();
+            throw new CurrencyNotSupportedException(currencyCode, supportedCurrencies);
+        }
     }
 }

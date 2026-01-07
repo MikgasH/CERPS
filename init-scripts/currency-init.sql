@@ -18,8 +18,14 @@ GRANT USAGE ON SCHEMA public TO analytics_readonly;
 -- Grant select on all existing tables
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_readonly;
 
+-- Grant usage on all sequences (for reading sequence information)
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO analytics_readonly;
+
 -- Grant select on future tables
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_readonly;
+
+-- Grant usage on future sequences
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO analytics_readonly;
 
 -- Ensure analytics role cannot modify data
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA public FROM analytics_readonly;

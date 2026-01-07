@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestConfig.class)
+@Sql(scripts = "/test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class TrendsServiceIntegrationTest {
 
     @Autowired
@@ -46,7 +48,7 @@ class TrendsServiceIntegrationTest {
 
         assertThatThrownBy(() -> trendsService.calculateTrends(request))
                 .isInstanceOf(InsufficientDataException.class)
-                .hasMessageContaining("Found 0 data points");
+                .hasMessageContaining("No exchange rate data available");
     }
 
     @Test

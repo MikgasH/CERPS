@@ -4,8 +4,10 @@ import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.example.analyticsservice.entity.ExchangeRateEntity;
+import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.InsufficientDataException;
 import org.example.analyticsservice.repository.ExchangeRateRepository;
+import org.example.analyticsservice.repository.SupportedCurrencyRepository;
 import org.example.analyticsservice.service.TrendsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,23 +32,28 @@ class TrendsServiceTest {
     @Mock
     private ExchangeRateRepository repository;
 
+    @Mock
+    private SupportedCurrencyRepository supportedCurrencyRepository;
+
     private TrendsService service;
     private final Instant now = Instant.now();
 
     @BeforeEach
     void setUp() {
-        service = new TrendsService(repository, new SimpleMeterRegistry());
+        service = new TrendsService(repository, supportedCurrencyRepository, new SimpleMeterRegistry());
         service.initMetrics();
+
+        when(supportedCurrencyRepository.existsByCurrencyCode(any())).thenReturn(true);
     }
 
     @Test
     void calculateTrends_WithSufficientData_ShouldReturnTrend() {
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
-        List<ExchangeRateEntity> rates = List.of(
-                createRate(now.minus(7, ChronoUnit.DAYS), "1.10"),
-                createRate(now, "1.18")
+        List<Object[]> mockData = List.of(
+                createMockRow(now.minus(7, ChronoUnit.DAYS), "1.10"),
+                createMockRow(now, "1.18")
         );
-        when(repository.findRatesForPeriod(any(), any(), any(), any())).thenReturn(rates);
+        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -59,21 +66,21 @@ class TrendsServiceTest {
     @Test
     void calculateTrends_WithInsufficientData_ShouldThrowException() {
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
-        when(repository.findRatesForPeriod(any(), any(), any(), any())).thenReturn(List.of());
+        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.calculateTrends(request))
                 .isInstanceOf(InsufficientDataException.class)
-                .hasMessageContaining("Found 0 data points");
+                .hasMessageContaining("No exchange rate data available");
     }
 
     @Test
     void calculateTrends_WithPositiveChange_ShouldReturnPositivePercentage() {
         TrendsRequest request = new TrendsRequest("USD", "EUR", "1D");
-        List<ExchangeRateEntity> rates = List.of(
-                createRate(now.minus(1, ChronoUnit.DAYS), "1.00"),
-                createRate(now, "1.25")
+        List<Object[]> mockData = List.of(
+                createMockRow(now.minus(1, ChronoUnit.DAYS), "1.00"),
+                createMockRow(now, "1.25")
         );
-        when(repository.findRatesForPeriod(any(), any(), any(), any())).thenReturn(rates);
+        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -84,11 +91,11 @@ class TrendsServiceTest {
     @Test
     void calculateTrends_WithNegativeChange_ShouldReturnNegativePercentage() {
         TrendsRequest request = new TrendsRequest("USD", "EUR", "1D");
-        List<ExchangeRateEntity> rates = List.of(
-                createRate(now.minus(1, ChronoUnit.DAYS), "2.00"),
-                createRate(now, "1.50")
+        List<Object[]> mockData = List.of(
+                createMockRow(now.minus(1, ChronoUnit.DAYS), "2.00"),
+                createMockRow(now, "1.50")
         );
-        when(repository.findRatesForPeriod(any(), any(), any(), any())).thenReturn(rates);
+        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -105,14 +112,25 @@ class TrendsServiceTest {
                 .hasMessageContaining("Invalid period unit");
     }
 
-    private ExchangeRateEntity createRate(Instant timestamp, String rate) {
-        return ExchangeRateEntity.builder()
-                .id(UUID.randomUUID())
-                .baseCurrency("USD")
-                .targetCurrency("EUR")
-                .rate(new BigDecimal(rate))
-                .source("TEST")
-                .timestamp(timestamp)
-                .build();
+    @Test
+    void calculateTrends_WithUnsupportedCurrency_ShouldThrowException() {
+        TrendsRequest request = new TrendsRequest("USD", "XYZ", "7D");
+        when(supportedCurrencyRepository.existsByCurrencyCode("USD")).thenReturn(true);
+        when(supportedCurrencyRepository.existsByCurrencyCode("XYZ")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.calculateTrends(request))
+                .isInstanceOf(CurrencyNotSupportedException.class)
+                .hasMessageContaining("XYZ");
+    }
+
+    private Object[] createMockRow(Instant timestamp, String rate) {
+        return new Object[]{
+                UUID.randomUUID(),
+                "USD",
+                "EUR",
+                new BigDecimal(rate),
+                "TEST",
+                timestamp
+        };
     }
 }

@@ -3,6 +3,7 @@ package com.example.cerpshashkin.unit.service;
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
+import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.CurrencyConversionService;
 import com.example.cerpshashkin.service.ExchangeRateService;
 import io.micrometer.core.instrument.Counter;
@@ -34,6 +35,9 @@ class CurrencyConversionServiceUnitTest {
     @Mock
     private ExchangeRateService exchangeRateService;
 
+    @Mock
+    private SupportedCurrencyRepository supportedCurrencyRepository;
+
     @Spy
     private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
@@ -43,6 +47,8 @@ class CurrencyConversionServiceUnitTest {
     @BeforeEach
     void setUp() {
         conversionService.initMetrics();
+        // Mock all currencies as supported by default
+        when(supportedCurrencyRepository.existsByCurrencyCode(any(String.class))).thenReturn(true);
     }
 
     @Test

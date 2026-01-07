@@ -35,10 +35,10 @@ class ExchangeRateRepositoryTest {
         Instant start = now.minus(7, ChronoUnit.DAYS);
         Instant end = now;
 
-        repository.save(createRate(start.plus(1, ChronoUnit.DAYS), "1.10"));
-        repository.save(createRate(start.plus(5, ChronoUnit.DAYS), "1.15"));
+        repository.save(createRate("EUR", "USD", start.plus(1, ChronoUnit.DAYS), "1.10"));
+        repository.save(createRate("EUR", "USD", start.plus(5, ChronoUnit.DAYS), "1.15"));
 
-        List<ExchangeRateEntity> result = repository.findRatesForPeriod("USD", "EUR", start, end);
+        List<Object[]> result = repository.findRatesWithCrossSupport("EUR", "USD", start, end);
 
         assertThat(result).hasSize(2);
     }
@@ -48,7 +48,7 @@ class ExchangeRateRepositoryTest {
         Instant start = now.minus(30, ChronoUnit.DAYS);
         Instant end = now.minus(20, ChronoUnit.DAYS);
 
-        List<ExchangeRateEntity> result = repository.findRatesForPeriod("USD", "EUR", start, end);
+        List<Object[]> result = repository.findRatesWithCrossSupport("EUR", "USD", start, end);
 
         assertThat(result).isEmpty();
     }
@@ -58,16 +58,16 @@ class ExchangeRateRepositoryTest {
         Instant start = now.minus(7, ChronoUnit.DAYS);
         Instant end = now;
 
-        repository.save(createRate(start.plus(5, ChronoUnit.DAYS), "1.15"));
-        repository.save(createRate(start.plus(1, ChronoUnit.DAYS), "1.10"));
-        repository.save(createRate(start.plus(3, ChronoUnit.DAYS), "1.12"));
+        repository.save(createRate("EUR", "USD", start.plus(5, ChronoUnit.DAYS), "1.15"));
+        repository.save(createRate("EUR", "USD", start.plus(1, ChronoUnit.DAYS), "1.10"));
+        repository.save(createRate("EUR", "USD", start.plus(3, ChronoUnit.DAYS), "1.12"));
 
-        List<ExchangeRateEntity> result = repository.findRatesForPeriod("USD", "EUR", start, end);
+        List<Object[]> result = repository.findRatesWithCrossSupport("EUR", "USD", start, end);
 
         assertThat(result).hasSize(3);
-        assertThat(result.get(0).getRate()).isEqualByComparingTo("1.10");
-        assertThat(result.get(1).getRate()).isEqualByComparingTo("1.12");
-        assertThat(result.get(2).getRate()).isEqualByComparingTo("1.15");
+        assertThat((BigDecimal) result.get(0)[3]).isEqualByComparingTo("1.10");
+        assertThat((BigDecimal) result.get(1)[3]).isEqualByComparingTo("1.12");
+        assertThat((BigDecimal) result.get(2)[3]).isEqualByComparingTo("1.15");
     }
 
     @Test
@@ -75,18 +75,18 @@ class ExchangeRateRepositoryTest {
         Instant start = now.minus(7, ChronoUnit.DAYS);
         Instant end = now;
 
-        repository.save(createRate("USD", "EUR", start.plus(1, ChronoUnit.DAYS), "1.10"));
-        repository.save(createRate("GBP", "JPY", start.plus(2, ChronoUnit.DAYS), "145.0"));
+        repository.save(createRate("EUR", "USD", start.plus(1, ChronoUnit.DAYS), "1.10"));
+        repository.save(createRate("EUR", "JPY", start.plus(2, ChronoUnit.DAYS), "145.0"));
 
-        List<ExchangeRateEntity> result = repository.findRatesForPeriod("USD", "EUR", start, end);
+        List<Object[]> result = repository.findRatesWithCrossSupport("EUR", "USD", start, end);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getBaseCurrency()).isEqualTo("USD");
+        assertThat((String) result.getFirst()[2]).isEqualTo("USD");
     }
 
     @Test
     void save_ShouldPersistEntity() {
-        ExchangeRateEntity entity = createRate(now, "1.18");
+        ExchangeRateEntity entity = createRate("EUR", "USD", now, "1.18");
 
         ExchangeRateEntity saved = repository.save(entity);
 
@@ -94,9 +94,6 @@ class ExchangeRateRepositoryTest {
         assertThat(repository.count()).isEqualTo(1);
     }
 
-    private ExchangeRateEntity createRate(Instant timestamp, String rate) {
-        return createRate("USD", "EUR", timestamp, rate);
-    }
 
     private ExchangeRateEntity createRate(String from, String to, Instant timestamp, String rate) {
         return ExchangeRateEntity.builder()
