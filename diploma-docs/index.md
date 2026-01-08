@@ -35,7 +35,7 @@ CERPS is a microservices-based platform that provides reliable currency exchange
 | 4 | Microservices | Completed | [microservices.md](02-technical/criteria/microservices.md) |
 | 5 | Containerization | Completed | [containerization.md](02-technical/criteria/containerization.md) |
 | 6 | API Documentation | Completed | [api-documentation.md](02-technical/criteria/api-documentation.md) |
-| 7 | Automated Tests (70% min) | Completed (87%) | [testing.md](02-technical/criteria/testing.md) |
+| 7 | Automated Tests (70% min) | Completed (89%) | [testing.md](02-technical/criteria/testing.md) |
 
 ## Documentation Structure
 
