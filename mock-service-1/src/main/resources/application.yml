@@ -3,4 +3,4 @@ spring:
     name: Mock-Exchange-Service-1
 
 server:
-  port: 8081
+  port: 8083

@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-api-provider-keys-table
+      author: hashkin
+      changes:
+        - createSequence:
+            sequenceName: api_provider_keys_seq
+            startValue: 1
+            incrementBy: 1
+        - createTable:
+            tableName: api_provider_keys
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  defaultValueSequenceNext: api_provider_keys_seq
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: provider_name
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: encrypted_api_key
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+      rollback:
+        - dropTable:
+            tableName: api_provider_keys
+        - dropSequence:
+            sequenceName: api_provider_keys_seq

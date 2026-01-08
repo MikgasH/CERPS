@@ -1,0 +1,16 @@
+openapi: 3.1.0
+info:
+  title: CERPS API Gateway
+  description: API Gateway for Currency Exchange Rate Processing System
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: API Gateway
+  - url: http://localhost:8081
+    description: User Service
+  - url: http://localhost:8080
+    description: Currency Service
+  - url: http://localhost:8082
+    description: Analytics Service
+paths: {}
+components: {}

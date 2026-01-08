@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-roles-table
+      author: hashkin
+      changes:
+        - createSequence:
+            sequenceName: roles_seq
+            startValue: 1
+            incrementBy: 1
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  defaultValueSequenceNext: roles_seq
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: roles
+        - dropSequence:
+            sequenceName: roles_seq

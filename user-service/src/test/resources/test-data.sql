@@ -1,0 +1,9 @@
+DELETE FROM user_roles;
+DELETE FROM users;
+DELETE FROM roles;
+
+INSERT INTO roles (id, name, created_at) VALUES (1, 'ROLE_USER', CURRENT_TIMESTAMP);
+INSERT INTO roles (id, name, created_at) VALUES (2, 'ROLE_PREMIUM_USER', CURRENT_TIMESTAMP);
+INSERT INTO roles (id, name, created_at) VALUES (3, 'ROLE_ADMIN', CURRENT_TIMESTAMP);
+
+ALTER SEQUENCE roles_seq RESTART WITH 4;

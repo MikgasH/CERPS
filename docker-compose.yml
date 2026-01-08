@@ -1,74 +1,283 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: cerps-postgres
+  postgres-currency:
+    image: postgres:15-alpine
+    container_name: postgres-currency
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: currency_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - currency-network
+      - postgres_currency_data:/var/lib/postgresql/data
+      - ./init-scripts/currency-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-
-  mock-service-1:
-    build:
-      context: ./mock-service-1
-      dockerfile: Dockerfile
-    container_name: cerps-mock-1
-    ports:
-      - "8081:8081"
     networks:
-      - currency-network
+      - cerps-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
-  mock-service-2:
-    build:
-      context: ./mock-service-2
-      dockerfile: Dockerfile
-    container_name: cerps-mock-2
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: postgres-users
+    environment:
+      POSTGRES_DB: users_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "8082:8082"
+      - "5433:5432"
+    volumes:
+      - postgres_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - currency-network
+      - cerps-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
-  app:
+  user-service:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: cerps-app
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-users:5432/users_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      JWT_EXPIRATION: 86400000
+      API_GATEWAY_URL: http://localhost:8000
     depends_on:
-      postgres:
+      postgres-users:
         condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  currency-service:
+    build:
+      context: .
+      dockerfile: currency-service/Dockerfile
+    container_name: currency-service
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - FIXER_API_KEY=${FIXER_API_KEY}
-      - EXCHANGERATES_API_KEY=${EXCHANGERATES_API_KEY}
-      - CURRENCYAPI_KEY=${CURRENCYAPI_KEY}
-      - MOCK_SERVICE_1_URL=http://mock-service-1:8081
-      - MOCK_SERVICE_2_URL=http://mock-service-2:8082
-      - JWT_SECRET=${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/${POSTGRES_CURRENCY_DB:-currency_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      USER_SERVICE_URL: http://user-service:8081
+      MOCK_SERVICE_1_URL: http://mock-service-1:8083
+      MOCK_SERVICE_2_URL: http://mock-service-2:8084
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
+      FIXER_API_KEY: ${FIXER_API_KEY:-test-api-key}
+      EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY:-test-api-key}
+      CURRENCYAPI_KEY: ${CURRENCYAPI_KEY:-test-api-key}
+      API_GATEWAY_URL: http://localhost:8000
+    depends_on:
+      postgres-currency:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      mock-service-1:
+        condition: service_healthy
+      mock-service-2:
+        condition: service_healthy
     networks:
-      - currency-network
+      - cerps-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    container_name: analytics-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/${POSTGRES_CURRENCY_DB:-currency_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_ANALYTICS_USER:-analytics_readonly}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
+      USER_SERVICE_URL: http://user-service:8081
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      API_GATEWAY_URL: http://localhost:8000
+    depends_on:
+      postgres-currency:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  mock-service-1:
+    build:
+      context: .
+      dockerfile: mock-service-1/Dockerfile
+    container_name: mock-service-1
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  mock-service-2:
+    build:
+      context: .
+      dockerfile: mock-service-2/Dockerfile
+    container_name: mock-service-2
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8084
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-min-256-bits-your-secret-key-min-256-bits}
+    depends_on:
+      user-service:
+        condition: service_healthy
+      currency-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    networks:
+      - cerps-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
 volumes:
-  postgres_data:
+  postgres_currency_data:
+    driver: local
+  postgres_users_data:
     driver: local
 
 networks:
-  currency-network:
+  cerps-network:
     driver: bridge

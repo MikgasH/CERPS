@@ -1,0 +1,48 @@
+package com.example.cerps.common.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+
+import java.util.List;
+
+public abstract class BaseOpenApiConfig {
+
+    @Value("${springdoc.server-url:}")
+    private String serverUrl;
+
+    protected abstract String getTitle();
+
+    protected abstract String getDescription();
+
+    protected abstract String getVersion();
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        final String securitySchemeName = "Bearer Authentication";
+
+        final OpenAPI openAPI = new OpenAPI()
+                .info(new Info()
+                        .title(getTitle())
+                        .description(getDescription())
+                        .version(getVersion()))
+                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                .components(new Components()
+                        .addSecuritySchemes(securitySchemeName, new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("Enter JWT token")));
+
+        if (serverUrl != null && !serverUrl.isBlank()) {
+            openAPI.servers(List.of(new Server().url(serverUrl).description("API Gateway")));
+        }
+
+        return openAPI;
+    }
+}

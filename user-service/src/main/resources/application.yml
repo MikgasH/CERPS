@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: User-Management-Service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
+server:
+  port: 8081
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    enable:
+      jvm: false
+      process: false
+      system: false
+      tomcat: false
+      logback: false
+      executor: false
+      spring.security: false
+      disk: false
+      hikaricp: true
+      jdbc: false
+    tags:
+      application: ${spring.application.name}
+      service: user-service
+
+logging:
+  level:
+    org.example.userservice: INFO
+    org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+
+springdoc:
+  server-url: ${API_GATEWAY_URL:}
+
