@@ -9,7 +9,7 @@
 | Student | Mikita Hashkin |
 | Group | 4th Year, Informatics |
 | Supervisor | Jan Bartnitsky (UAB Gurtam, Software Engineer) |
-| Institution | European Humanities University, EPAM Digital Engineering School |
+| Institution | European Humanities University, School of Digital Competencies |
 | Date | February 2026 |
 
 ## Project Links
