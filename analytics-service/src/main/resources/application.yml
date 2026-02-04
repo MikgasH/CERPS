@@ -21,10 +21,6 @@ spring:
         default_schema: public
     open-in-view: false
 
-services:
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8081}
-
 management:
   endpoints:
     web:
@@ -51,15 +47,12 @@ management:
       jdbc: false
     tags:
       application: ${spring.application.name}
-      service: analytics-service
 
 logging:
   level:
     org.example.analyticsservice: INFO
-    org.springframework.web: INFO
+    org.springframework.web: WARN
     org.springframework.security: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 springdoc:
   api-docs:
@@ -68,4 +61,3 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
-  server-url: ${API_GATEWAY_URL:}

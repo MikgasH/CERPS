@@ -41,22 +41,4 @@ public class ExternalClientsConfig {
                 .requestInterceptor(correlationIdInterceptor)
                 .build();
     }
-
-    @Bean("mockService1RestClient")
-    public RestClient mockService1RestClient(
-            @Value("${api.mock1.url}") final String mockService1Url) {
-        return RestClient.builder()
-                .baseUrl(mockService1Url)
-                .requestInterceptor(correlationIdInterceptor)
-                .build();
-    }
-
-    @Bean("mockService2RestClient")
-    public RestClient mockService2RestClient(
-            @Value("${api.mock2.url}") final String mockService2Url) {
-        return RestClient.builder()
-                .baseUrl(mockService2Url)
-                .requestInterceptor(correlationIdInterceptor)
-                .build();
-    }
 }

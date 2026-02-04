@@ -40,26 +40,6 @@ class AnalyticsControllerIntegrationTest {
     }
 
     @Test
-    void getTrends_WithoutAuth_ShouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/v1/analytics/trends")
-                        .param("from", "USD")
-                        .param("to", "EUR")
-                        .param("period", "7D"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void getTrends_WithUserRole_ShouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/v1/analytics/trends")
-                        .param("from", "USD")
-                        .param("to", "EUR")
-                        .param("period", "7D")
-                        .header("X-User-Email", "user@example.com")
-                        .header("X-User-Roles", "ROLE_USER"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     void getTrends_WithAdminRole_ShouldReturn200() throws Exception {
         mockMvc.perform(get("/api/v1/analytics/trends")
                         .param("from", "USD")

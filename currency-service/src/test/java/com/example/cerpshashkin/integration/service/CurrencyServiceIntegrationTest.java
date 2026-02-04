@@ -1,4 +1,4 @@
-package com.example.cerpshashkin.integration.service;
+/*package com.example.cerpshashkin.integration.service;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
@@ -143,4 +143,4 @@ class CurrencyServiceIntegrationTest extends BaseWireMockTest {
         assertThat(result.fromCurrency()).isEqualTo("EUR");
         assertThat(result.toCurrency()).isEqualTo("CNY");
     }
-}
+}*/

@@ -31,15 +31,6 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class TrendsService {
 
-    private static final String LOG_CALCULATING_TRENDS = "Calculating trends for {} -> {} over period {}";
-    private static final String LOG_FOUND_DATA_POINTS = "Found {} data points for trend analysis";
-    private static final String LOG_TREND_RESULT = "Trend: {} -> {}, Change: {}%";
-    private static final String LOG_USING_ALL_AVAILABLE = "Requested period has no data, using all available data ({} points)";
-    private static final String LOG_SINGLE_DATA_POINT = "Only 1 data point available, returning with 0% change";
-    private static final String ERROR_NO_DATA = "No exchange rate data available for %s -> %s. " +
-            "Please ensure rates have been fetched at least once.";
-    private static final String ERROR_INVALID_PERIOD_UNIT = "Invalid period unit: ";
-
     private static final int SCALE = 2;
     private static final int CALCULATION_SCALE = 6;
     private static final long DAYS_IN_MONTH = 30L;
@@ -72,8 +63,6 @@ public class TrendsService {
     public TrendsResponse calculateTrends(final TrendsRequest request) {
         return trendsCalculationTimer.record(() -> {
             try {
-                log.info(LOG_CALCULATING_TRENDS, request.from(), request.to(), request.period());
-
                 final String fromCode = request.from().toUpperCase();
                 final String toCode = request.to().toUpperCase();
 
@@ -87,25 +76,21 @@ public class TrendsService {
                         exchangeRateRepository.findRatesWithCrossSupport(fromCode, toCode, startDate, endDate)
                 );
 
-                log.info(LOG_FOUND_DATA_POINTS, rates.size());
-
                 if (rates.size() < 2) {
                     rates = convertToEntityList(
                             exchangeRateRepository.findRatesWithCrossSupport(fromCode, toCode, null, null)
                     );
-                    log.info(LOG_USING_ALL_AVAILABLE, rates.size());
+                    log.info("Using all available data - {} points", rates.size());
                 }
 
                 if (rates.isEmpty()) {
                     throw new InsufficientDataException(
-                            String.format(ERROR_NO_DATA, fromCode, toCode)
+                            String.format("No exchange rate data available for %s -> %s", fromCode, toCode)
                     );
                 }
 
                 if (rates.size() == 1) {
                     final ExchangeRateEntity singleRate = rates.getFirst();
-                    log.info(LOG_SINGLE_DATA_POINT);
-
                     trendsSuccessCounter.increment();
                     return TrendsResponse.success(
                             fromCode,
@@ -128,7 +113,7 @@ public class TrendsService {
                         newestRate.getRate()
                 );
 
-                log.info(LOG_TREND_RESULT, fromCode, toCode, changePercentage);
+                log.info("Trend calculated: {} -> {}, change: {}%", fromCode, toCode, changePercentage);
 
                 trendsSuccessCounter.increment();
                 return TrendsResponse.success(
@@ -174,7 +159,7 @@ public class TrendsService {
             case 'D' -> endDate.minus(amount, ChronoUnit.DAYS);
             case 'M' -> endDate.minus(amount * DAYS_IN_MONTH, ChronoUnit.DAYS);
             case 'Y' -> endDate.minus(amount * DAYS_IN_YEAR, ChronoUnit.DAYS);
-            default -> throw new IllegalArgumentException(ERROR_INVALID_PERIOD_UNIT + unit);
+            default -> throw new IllegalArgumentException("Invalid period unit: " + unit);
         };
     }
 

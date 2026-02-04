@@ -6,9 +6,7 @@ import lombok.Getter;
 public enum ApiProvider {
     FIXER("Fixer.io"),
     EXCHANGE_RATES("ExchangeRatesAPI"),
-    CURRENCY_API("CurrencyAPI"),
-    MOCK_SERVICE_1("MockService1"),
-    MOCK_SERVICE_2("MockService2");
+    CURRENCY_API("CurrencyAPI");
 
     private final String displayName;
 

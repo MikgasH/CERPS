@@ -28,25 +28,13 @@ spring:
 api:
   fixer:
     url: http://data.fixer.io/api
-    access-key: ${FIXER_API_KEY}
-
   exchangerates:
     url: http://api.exchangeratesapi.io/v1
-    access-key: ${EXCHANGERATES_API_KEY}
-
   currencyapi:
     url: https://api.currencyapi.com/v3
-    access-key: ${CURRENCYAPI_KEY}
 
-  mock1:
-    url: ${MOCK_SERVICE_1_URL:http://localhost:8083}
-
-  mock2:
-    url: ${MOCK_SERVICE_2_URL:http://localhost:8084}
-
-services:
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8081}
+admin:
+  api-key: ${ADMIN_API_KEY}
 
 cache:
   exchange-rates:
@@ -67,7 +55,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: prometheus,health,metrics,circuitbreakers,circuitbreakerevents
+        include: prometheus,health,metrics
   endpoint:
     health:
       show-details: always
@@ -89,16 +77,12 @@ management:
       jdbc: false
     tags:
       application: ${spring.application.name}
-      service: currency-service
 
 logging:
   level:
     com.example.cerpshashkin: INFO
-    org.springframework.web: INFO
+    org.springframework.web: WARN
     org.springframework.security: WARN
-    org.hibernate.SQL: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [${spring.application.name}] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 springdoc:
   api-docs:
@@ -107,7 +91,6 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
-  server-url: ${API_GATEWAY_URL:}
 
 resilience4j:
   retry:
@@ -121,4 +104,3 @@ resilience4j:
       currencyApiClient:
         max-attempts: 3
         wait-duration: 2s
-

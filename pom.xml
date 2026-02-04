@@ -15,11 +15,7 @@
     <modules>
         <module>cerps-common</module>
         <module>currency-service</module>
-        <module>user-service</module>
         <module>analytics-service</module>
-        <module>api-gateway</module>
-        <module>mock-service-1</module>
-        <module>mock-service-2</module>
     </modules>
 
     <parent>

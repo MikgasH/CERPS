@@ -1,8 +1,10 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerpshashkin.dto.CurrentRatesResponse;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
 import com.example.cerpshashkin.entity.ExchangeRateSource;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
+import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.model.CachedRate;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
@@ -19,34 +21,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Currency;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class ExchangeRateService {
-
-    private static final String LOG_CACHE_HIT = "Cache HIT: {} -> {} ({})";
-    private static final String LOG_CACHE_MISS = "Cache MISS: {} -> {}";
-    private static final String LOG_DB_HIT = "Database HIT: {} -> {} ({})";
-    private static final String LOG_PROVIDERS_FALLBACK = "Fetching from providers as fallback";
-    private static final String LOG_ERROR_REFRESH_RATES = "Failed to refresh exchange rates";
-    private static final String LOG_REFRESHING_RATES = "Refreshing exchange rates from providers";
-    private static final String LOG_RATES_REFRESHED = "Exchange rates refreshed. Saved {} rates to database";
-    private static final String LOG_ERROR_PROVIDERS_FETCH = "Failed to get exchange rates from providers";
-
-    private static final String ERROR_REFRESH_RATES = "Failed to refresh exchange rates: ";
-    private static final String ERROR_UNSUCCESSFUL_RESPONSE = "Provider returned unsuccessful response";
-
-    private static final String RATE_TYPE_DIRECT = "direct";
-    private static final String RATE_TYPE_INVERSE = "inverse";
-    private static final String RATE_TYPE_CROSS_PREFIX = "cross via ";
 
     private static final int SCALE = 6;
     private static final int MAX_AGE_HOURS = 6;
@@ -61,80 +42,45 @@ public class ExchangeRateService {
 
     public Optional<BigDecimal> getExchangeRate(final Currency from, final Currency to) {
         return getFromCache(from, to)
-                .or(() -> {
-                    log.info(LOG_CACHE_MISS, from.getCurrencyCode(), to.getCurrencyCode());
-                    return getFromDatabase(from, to);
-                })
-                .or(() -> {
-                    log.warn(LOG_PROVIDERS_FALLBACK);
-                    return getExchangeRateFromProviders(from, to);
-                });
+                .or(() -> getFromDatabase(from, to))
+                .or(() -> getExchangeRateFromProviders(from, to));
     }
 
-    private Optional<BigDecimal> getFromCache(final Currency from, final Currency to) {
-        Optional<BigDecimal> direct = cache.getRate(from, to)
-                .map(cached -> {
-                    logCacheHit(from, to, RATE_TYPE_DIRECT);
-                    return cached.rate();
-                });
+    public CurrentRatesResponse getAllRatesForBase(final String baseCode) {
+        final String normalized = baseCode.trim().toUpperCase();
+        final Currency baseCurrency = Currency.getInstance(normalized);
 
-        if (direct.isPresent()) {
-            return direct;
-        }
+        final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
+                .stream()
+                .map(SupportedCurrencyEntity::getCurrencyCode)
+                .toList();
 
-        Optional<BigDecimal> inverse = cache.getRate(to, from)
-                .map(cached -> {
-                    logCacheHit(from, to, RATE_TYPE_INVERSE);
-                    return BigDecimal.ONE.divide(cached.rate(), SCALE, RoundingMode.HALF_UP);
-                });
+        final Map<String, BigDecimal> rates = supportedCurrencies.stream()
+                .filter(code -> !code.equals(normalized))
+                .collect(Collectors.toMap(
+                        code -> code,
+                        code -> {
+                            final Currency target = Currency.getInstance(code);
+                            return getExchangeRate(baseCurrency, target)
+                                    .orElseThrow(() -> new ExchangeRateNotAvailableException(
+                                            normalized, code
+                                    ));
+                        }
+                ));
 
-        if (inverse.isPresent()) {
-            return inverse;
-        }
-
-        Currency baseCurrency = Currency.getInstance(baseCurrencyCode);
-        Optional<CachedRate> fromRate = cache.getRate(baseCurrency, from);
-        Optional<CachedRate> toRate = cache.getRate(baseCurrency, to);
-
-        if (fromRate.isPresent() && toRate.isPresent()) {
-            logCacheHit(from, to, RATE_TYPE_CROSS_PREFIX + baseCurrencyCode);
-            return Optional.of(toRate.get().rate()
-                    .divide(fromRate.get().rate(), SCALE, RoundingMode.HALF_UP));
-        }
-
-        return Optional.empty();
-    }
-
-    private void logCacheHit(final Currency from, final Currency to, final String rateType) {
-        log.info(LOG_CACHE_HIT, from.getCurrencyCode(), to.getCurrencyCode(), rateType);
-    }
-
-    private Optional<BigDecimal> getFromDatabase(final Currency from, final Currency to) {
-        Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
-
-        return exchangeRateRepository.findBestRate(
-                from.getCurrencyCode(),
-                to.getCurrencyCode(),
-                baseCurrencyCode,
-                maxAge
-        ).map(result -> {
-            BigDecimal rate = result.getRate();
-            cache.putRate(from, to, rate);
-            log.info(LOG_DB_HIT, from.getCurrencyCode(), to.getCurrencyCode(),
-                    result.getRateType().toLowerCase());
-            return rate;
-        });
+        return CurrentRatesResponse.success(normalized, rates);
     }
 
     @Transactional
     public void refreshRates() {
-        log.info(LOG_REFRESHING_RATES);
+        log.info("Refreshing exchange rates");
 
         try {
             final CurrencyExchangeResponse response = providerService.getLatestRatesFromProviders();
 
             if (!response.success()) {
-                throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES + ERROR_UNSUCCESSFUL_RESPONSE);
+                log.warn("Provider returned unsuccessful response, keeping existing cache");
+                return;
             }
 
             cache.clearCache();
@@ -158,9 +104,7 @@ public class ExchangeRateService {
                     )
                     .toList();
 
-            if (!response.isMockData()) {
-                exchangeRateRepository.saveAll(entities);
-            }
+            exchangeRateRepository.saveAll(entities);
 
             entities.forEach(entity ->
                     cache.putRate(
@@ -170,22 +114,55 @@ public class ExchangeRateService {
                     )
             );
 
-            log.info(LOG_RATES_REFRESHED, entities.size());
+            log.info("Exchange rates refreshed - {} rates saved", entities.size());
 
-        } catch (ExchangeRateNotAvailableException e) {
-            log.error(LOG_ERROR_REFRESH_RATES, e);
-            throw e;
+        } catch (AllProvidersFailedException e) {
+            log.error("All providers failed, keeping existing cache and database data", e);
         } catch (Exception e) {
-            log.error(LOG_ERROR_REFRESH_RATES, e);
-            throw new ExchangeRateNotAvailableException(ERROR_REFRESH_RATES + e.getMessage());
+            log.error("Failed to refresh exchange rates, keeping existing data", e);
         }
     }
 
-    public void cacheExchangeRates(final CurrencyExchangeResponse response) {
-        Optional.ofNullable(response.rates())
-                .ifPresent(rates -> rates.forEach((currency, rate) ->
-                        cache.putRate(response.base(), currency, rate)
-                ));
+    private Optional<BigDecimal> getFromCache(final Currency from, final Currency to) {
+        final Optional<BigDecimal> direct = cache.getRate(from, to)
+                .map(CachedRate::rate);
+
+        if (direct.isPresent()) {
+            return direct;
+        }
+
+        final Optional<BigDecimal> inverse = cache.getRate(to, from)
+                .map(cached -> BigDecimal.ONE.divide(cached.rate(), SCALE, RoundingMode.HALF_UP));
+
+        if (inverse.isPresent()) {
+            return inverse;
+        }
+
+        final Currency baseCurrency = Currency.getInstance(baseCurrencyCode);
+        final Optional<CachedRate> fromRate = cache.getRate(baseCurrency, from);
+        final Optional<CachedRate> toRate = cache.getRate(baseCurrency, to);
+
+        if (fromRate.isPresent() && toRate.isPresent()) {
+            return Optional.of(toRate.get().rate()
+                    .divide(fromRate.get().rate(), SCALE, RoundingMode.HALF_UP));
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<BigDecimal> getFromDatabase(final Currency from, final Currency to) {
+        final Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
+
+        return exchangeRateRepository.findBestRate(
+                from.getCurrencyCode(),
+                to.getCurrencyCode(),
+                baseCurrencyCode,
+                maxAge
+        ).map(result -> {
+            final BigDecimal rate = result.getRate();
+            cache.putRate(from, to, rate);
+            return rate;
+        });
     }
 
     private Optional<BigDecimal> getExchangeRateFromProviders(final Currency from, final Currency to) {
@@ -198,9 +175,16 @@ public class ExchangeRateService {
                         return calculateExchangeRate(from, to, response);
                     });
         } catch (Exception e) {
-            log.error(LOG_ERROR_PROVIDERS_FETCH, e);
+            log.error("Failed to get rates from providers", e);
             return Optional.empty();
         }
+    }
+
+    private void cacheExchangeRates(final CurrencyExchangeResponse response) {
+        Optional.ofNullable(response.rates())
+                .ifPresent(rates -> rates.forEach((currency, rate) ->
+                        cache.putRate(response.base(), currency, rate)
+                ));
     }
 
     private Optional<BigDecimal> calculateExchangeRate(
