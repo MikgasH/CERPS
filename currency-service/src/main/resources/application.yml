@@ -43,7 +43,7 @@ cache:
 scheduling:
   enabled: true
   exchange-rates:
-    rate: 3600000
+    rate: 28800000
 
 exchange-rates:
   base-currency: EUR

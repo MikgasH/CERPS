@@ -25,7 +25,7 @@ import java.util.List;
 @Slf4j
 @Validated
 @Tag(name = "Admin", description = "Admin operations (requires X-API-Key header)")
-@SecurityRequirement(name = "ApiKey")
+@SecurityRequirement(name = "X-API-Key")
 public class AdminController {
 
     private final AdminService adminService;

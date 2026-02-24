@@ -18,49 +18,55 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
 
     String FIND_BEST_RATE_QUERY = """
             WITH rate_options AS (
-                SELECT 
-                    1 as priority,
-                    'DIRECT' as rate_type,
-                    rate,
-                    timestamp
-                FROM exchange_rates
-                WHERE base_currency = :fromCurrency
-                  AND target_currency = :toCurrency
-                  AND timestamp >= :maxAge
-                ORDER BY timestamp DESC
-                LIMIT 1
+                SELECT * FROM (
+                    SELECT 
+                        1 as priority,
+                        'DIRECT' as rate_type,
+                        rate,
+                        timestamp
+                    FROM exchange_rates
+                    WHERE base_currency = :fromCurrency
+                      AND target_currency = :toCurrency
+                      AND timestamp >= :maxAge
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) direct_rate
                 
                 UNION ALL
                 
-                SELECT 
-                    2 as priority,
-                    'INVERSE' as rate_type,
-                    1.0 / rate as rate,
-                    timestamp
-                FROM exchange_rates
-                WHERE base_currency = :toCurrency
-                  AND target_currency = :fromCurrency
-                  AND timestamp >= :maxAge
-                ORDER BY timestamp DESC
-                LIMIT 1
+                SELECT * FROM (
+                    SELECT 
+                        2 as priority,
+                        'INVERSE' as rate_type,
+                        1.0 / rate as rate,
+                        timestamp
+                    FROM exchange_rates
+                    WHERE base_currency = :toCurrency
+                      AND target_currency = :fromCurrency
+                      AND timestamp >= :maxAge
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) inverse_rate
                 
                 UNION ALL
                 
-                SELECT 
-                    3 as priority,
-                    'CROSS' as rate_type,
-                    e2.rate / e1.rate as rate,
-                    LEAST(e1.timestamp, e2.timestamp) as timestamp
-                FROM exchange_rates e1
-                INNER JOIN exchange_rates e2 
-                    ON e1.base_currency = e2.base_currency
-                WHERE e1.base_currency = :baseCurrency
-                  AND e1.target_currency = :fromCurrency
-                  AND e2.target_currency = :toCurrency
-                  AND e1.timestamp >= :maxAge
-                  AND e2.timestamp >= :maxAge
-                ORDER BY LEAST(e1.timestamp, e2.timestamp) DESC
-                LIMIT 1
+                SELECT * FROM (
+                    SELECT 
+                        3 as priority,
+                        'CROSS' as rate_type,
+                        e2.rate / e1.rate as rate,
+                        LEAST(e1.timestamp, e2.timestamp) as timestamp
+                    FROM exchange_rates e1
+                    INNER JOIN exchange_rates e2 
+                        ON e1.base_currency = e2.base_currency
+                    WHERE e1.base_currency = :baseCurrency
+                      AND e1.target_currency = :fromCurrency
+                      AND e2.target_currency = :toCurrency
+                      AND e1.timestamp >= :maxAge
+                      AND e2.timestamp >= :maxAge
+                    ORDER BY LEAST(e1.timestamp, e2.timestamp) DESC
+                    LIMIT 1
+                ) cross_rate
             )
             SELECT rate, rate_type as rateType, timestamp
             FROM rate_options

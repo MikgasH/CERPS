@@ -3,12 +3,7 @@ databaseChangeLog:
       id: insert-default-currencies
       author: hashkin
       changes:
-        - insert:
-            tableName: supported_currencies
-            columns:
-              - column:
-                  name: currency_code
-                  value: USD
+        # === Major global currencies ===
         - insert:
             tableName: supported_currencies
             columns:
@@ -20,7 +15,19 @@ databaseChangeLog:
             columns:
               - column:
                   name: currency_code
+                  value: USD
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
                   value: GBP
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: CHF
         - insert:
             tableName: supported_currencies
             columns:
@@ -32,7 +39,88 @@ databaseChangeLog:
             columns:
               - column:
                   name: currency_code
-                  value: CHF
+                  value: CNY
+
+        # === EU countries not on EUR (popular travel destinations) ===
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: PLN
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: CZK
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: HUF
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: RON
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: BGN
+
+        # === Scandinavia ===
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: SEK
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: NOK
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: DKK
+
+        # === Other European ===
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: TRY
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: UAH
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: GEL
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: BYN
+
+
+        # === Other popular travel currencies ===
         - insert:
             tableName: supported_currencies
             columns:
@@ -50,20 +138,15 @@ databaseChangeLog:
             columns:
               - column:
                   name: currency_code
-                  value: CNY
-        - insert:
-            tableName: supported_currencies
-            columns:
-              - column:
-                  name: currency_code
-                  value: SEK
-        - insert:
-            tableName: supported_currencies
-            columns:
-              - column:
-                  name: currency_code
                   value: NZD
+
       rollback:
         - delete:
             tableName: supported_currencies
-            where: currency_code IN ('USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'SEK', 'NZD')
+            where: currency_code IN (
+              'EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CNY',
+              'PLN', 'CZK', 'HUF', 'RON', 'BGN',
+              'SEK', 'NOK', 'DKK',
+              'TRY', 'UAH', 'GEL', 'BYN',
+              'CAD', 'AUD', 'NZD'
+              )
