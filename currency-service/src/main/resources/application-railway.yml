@@ -2,19 +2,17 @@
 server:
   port: ${PORT:8080}
   tomcat:
-    threads:
-      max: 10
-      min-spare: 2
+    max-threads: 10
+    min-spare-threads: 2
     max-connections: 50
     accept-count: 10
     connection-timeout: 5000
 
 spring:
   datasource:
-    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
-    username: ${PGUSER}
-    password: ${PGPASSWORD}
-    driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL:${SPRING_DATASOURCE_URL}}
+    username: ${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}
+    password: ${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:postgres}}
     hikari:
       maximum-pool-size: 3
       minimum-idle: 1
@@ -51,6 +49,8 @@ management:
   endpoint:
     health:
       show-details: never
+    prometheus:
+      enabled: false
   prometheus:
     metrics:
       export:
