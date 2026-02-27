@@ -1,0 +1,10 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "analytics-service/Dockerfile"
+watchPatterns = ["analytics-service/**", "cerps-common/**", "pom.xml"]
+
+[deploy]
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
