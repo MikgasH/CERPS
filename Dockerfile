@@ -25,21 +25,4 @@ RUN keytool -import -trustcacerts -noprompt \
 
 EXPOSE 8080
 
-ENV JAVA_OPTS=""
-
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS \
-  -XX:+UseSerialGC \
-  -XX:MaxRAM=128m \
-  -Xms32m \
-  -Xmx64m \
-  -XX:MaxMetaspaceSize=64m \
-  -XX:+UseCompressedOops \
-  -XX:+UseCompressedClassPointers \
-  -XX:CompressedClassSpaceSize=16m \
-  -XX:ReservedCodeCacheSize=16m \
-  -XX:MaxDirectMemorySize=8m \
-  -Xss256k \
-  -XX:+ExitOnOutOfMemoryError \
-  -Dspring.jmx.enabled=false \
-  -Dspring.config.additional-location=optional:file:/app/config/ \
-  -jar app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

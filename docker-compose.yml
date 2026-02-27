@@ -39,10 +39,6 @@ services:
       FIXER_API_KEY: ${FIXER_API_KEY:-test-key}
       EXCHANGERATES_API_KEY: ${EXCHANGERATES_API_KEY:-test-key}
       CURRENCYAPI_KEY: ${CURRENCYAPI_KEY:-test-key}
-    deploy:
-      resources:
-        limits:
-          memory: 192M
     depends_on:
       postgres-currency:
         condition: service_healthy
@@ -69,10 +65,6 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_ANALYTICS_USER:-analytics_readonly}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-    deploy:
-      resources:
-        limits:
-          memory: 192M
     depends_on:
       postgres-currency:
         condition: service_healthy
