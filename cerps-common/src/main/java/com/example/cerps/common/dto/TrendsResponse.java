@@ -2,11 +2,13 @@ package com.example.cerps.common.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record TrendsResponse(
         String from,
         String to,
         String period,
+        List<RatePoint> points,
         BigDecimal oldRate,
         BigDecimal newRate,
         BigDecimal changePercentage,
@@ -18,6 +20,7 @@ public record TrendsResponse(
             final String from,
             final String to,
             final String period,
+            final List<RatePoint> points,
             final BigDecimal oldRate,
             final BigDecimal newRate,
             final BigDecimal changePercentage,
@@ -29,6 +32,7 @@ public record TrendsResponse(
                 from,
                 to,
                 period,
+                points,
                 oldRate,
                 newRate,
                 changePercentage,

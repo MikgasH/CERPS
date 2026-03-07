@@ -1,5 +1,6 @@
 package org.example.analyticsservice.service;
 
+import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
 import io.micrometer.core.instrument.Counter;
@@ -89,6 +90,12 @@ public class TrendsService {
                     );
                 }
 
+                final List<RatePoint> points = rates.stream()
+                        .map(r -> new RatePoint(
+                                r.getTimestamp().toString(),
+                                r.getRate().doubleValue()))
+                        .toList();
+
                 if (rates.size() == 1) {
                     final ExchangeRateEntity singleRate = rates.getFirst();
                     trendsSuccessCounter.increment();
@@ -96,6 +103,7 @@ public class TrendsService {
                             fromCode,
                             toCode,
                             request.period().toUpperCase(),
+                            points,
                             singleRate.getRate(),
                             singleRate.getRate(),
                             BigDecimal.ZERO,
@@ -120,6 +128,7 @@ public class TrendsService {
                         fromCode,
                         toCode,
                         request.period().toUpperCase(),
+                        points,
                         oldestRate.getRate(),
                         newestRate.getRate(),
                         changePercentage,
