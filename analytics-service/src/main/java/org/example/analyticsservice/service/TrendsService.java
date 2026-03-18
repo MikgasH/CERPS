@@ -70,7 +70,10 @@ public class TrendsService {
                 validateSupportedCurrency(fromCode);
                 validateSupportedCurrency(toCode);
 
-                final Instant endDate = Instant.now();
+                final Instant endDate = Instant.now()
+                        .truncatedTo(ChronoUnit.DAYS)
+                        .plus(1, ChronoUnit.DAYS)
+                        .minusMillis(1);
                 final Instant startDate = calculateStartDate(endDate, request.period());
 
                 List<ExchangeRateEntity> rates = convertToEntityList(
