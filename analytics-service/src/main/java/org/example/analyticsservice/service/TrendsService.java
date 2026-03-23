@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -34,8 +36,6 @@ public class TrendsService {
 
     private static final int SCALE = 2;
     private static final int CALCULATION_SCALE = 6;
-    private static final long DAYS_IN_MONTH = 30L;
-    private static final long DAYS_IN_YEAR = 365L;
     private static final int HUNDRED = 100;
 
     private final ExchangeRateRepository exchangeRateRepository;
@@ -169,8 +169,16 @@ public class TrendsService {
         return switch (unit) {
             case 'H' -> endDate.minus(amount, ChronoUnit.HOURS);
             case 'D' -> endDate.minus(amount, ChronoUnit.DAYS);
-            case 'M' -> endDate.minus(amount * DAYS_IN_MONTH, ChronoUnit.DAYS);
-            case 'Y' -> endDate.minus(amount * DAYS_IN_YEAR, ChronoUnit.DAYS);
+            case 'M' -> {
+                final LocalDate endLocalDate = endDate.atZone(ZoneOffset.UTC).toLocalDate();
+                final LocalDate startLocalDate = endLocalDate.minusMonths(amount);
+                yield startLocalDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+            }
+            case 'Y' -> {
+                final LocalDate endLocalDate = endDate.atZone(ZoneOffset.UTC).toLocalDate();
+                final LocalDate startLocalDate = endLocalDate.minusYears(amount);
+                yield startLocalDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+            }
             default -> throw new IllegalArgumentException("Invalid period unit: " + unit);
         };
     }

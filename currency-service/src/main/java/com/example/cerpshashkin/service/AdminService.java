@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
 
@@ -41,12 +42,24 @@ public class AdminService {
     }
 
     public void refreshExchangeRates() {
-        log.info("Refreshing exchange rates");
-        exchangeRateService.refreshRates();
+        log.info("AUDIT: Manual rate refresh initiated. operation=RATE_REFRESH, timestamp={}", Instant.now());
+        try {
+            exchangeRateService.refreshRates();
+            log.info("AUDIT: Manual rate refresh completed. operation=RATE_REFRESH, result=SUCCESS, timestamp={}", Instant.now());
+        } catch (Exception e) {
+            log.warn("AUDIT: Manual rate refresh failed. operation=RATE_REFRESH, result=FAILURE, reason={}, timestamp={}",
+                    e.getMessage(), Instant.now());
+            throw e;
+        }
     }
 
     public ProviderKeyResponse createProviderKey(final CreateProviderKeyRequest request) {
-        return providerKeyService.createProviderKey(request);
+        log.info("AUDIT: Provider key creation. operation=PROVIDER_KEY_CREATE, provider={}, timestamp={}",
+                request.providerName(), Instant.now());
+        final ProviderKeyResponse response = providerKeyService.createProviderKey(request);
+        log.info("AUDIT: Provider key created. operation=PROVIDER_KEY_CREATE, result=SUCCESS, provider={}, keyId={}, timestamp={}",
+                request.providerName(), response.id(), Instant.now());
+        return response;
     }
 
     public List<ProviderKeyResponse> getAllProviderKeys() {
@@ -58,11 +71,18 @@ public class AdminService {
     }
 
     public ProviderKeyResponse updateProviderKey(final Long id, final UpdateProviderKeyRequest request) {
-        return providerKeyService.updateProviderKey(id, request);
+        log.info("AUDIT: Provider key update. operation=PROVIDER_KEY_UPDATE, keyId={}, timestamp={}", id, Instant.now());
+        final ProviderKeyResponse response = providerKeyService.updateProviderKey(id, request);
+        log.info("AUDIT: Provider key updated. operation=PROVIDER_KEY_UPDATE, result=SUCCESS, keyId={}, provider={}, timestamp={}",
+                id, response.providerName(), Instant.now());
+        return response;
     }
 
     public void deleteProviderKey(final Long id) {
+        log.info("AUDIT: Provider key deletion. operation=PROVIDER_KEY_DELETE, keyId={}, timestamp={}", id, Instant.now());
         providerKeyService.deleteProviderKey(id);
+        log.info("AUDIT: Provider key deactivated. operation=PROVIDER_KEY_DELETE, result=SUCCESS, keyId={}, timestamp={}",
+                id, Instant.now());
     }
 
     private String validateAndNormalize(final String currencyCode) {

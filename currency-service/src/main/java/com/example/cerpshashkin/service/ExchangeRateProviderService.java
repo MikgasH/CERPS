@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class ExchangeRateProviderService {
 
     private static final int SCALE = 6;
+    private static final BigDecimal MAX_RATE = BigDecimal.valueOf(1_000_000);
 
     @Value("${exchange-rates.base-currency:EUR}")
     private String baseCurrencyCode;
@@ -63,6 +64,8 @@ public class ExchangeRateProviderService {
             return Optional.of(response)
                     .filter(CurrencyExchangeResponse::success)
                     .filter(r -> r.rates() != null && !r.rates().isEmpty())
+                    .map(r -> filterValidRates(r, client.getProviderName()))
+                    .filter(r -> !r.rates().isEmpty())
                     .map(r -> {
                         log.info("Provider {} succeeded", client.getProviderName());
                         return r;
@@ -71,6 +74,42 @@ public class ExchangeRateProviderService {
         } catch (Exception e) {
             log.warn("Provider {} failed: {}", client.getProviderName(), e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    private CurrencyExchangeResponse filterValidRates(
+            final CurrencyExchangeResponse response, final String providerName) {
+        final Map<Currency, BigDecimal> validRates = response.rates().entrySet().stream()
+                .filter(entry -> {
+                    final BigDecimal rate = entry.getValue();
+                    if (!isValidRate(rate)) {
+                        log.warn("Invalid rate from provider {}: {} = {} — skipping",
+                                providerName, entry.getKey().getCurrencyCode(), rate);
+                        return false;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        return CurrencyExchangeResponse.success(
+                response.base(), response.rateDate(), validRates, response.isMockData());
+    }
+
+    private boolean isValidRate(final BigDecimal rate) {
+        if (rate == null) {
+            return false;
+        }
+        if (rate.compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+        if (rate.compareTo(MAX_RATE) >= 0) {
+            return false;
+        }
+        try {
+            final double doubleVal = rate.doubleValue();
+            return Double.isFinite(doubleVal);
+        } catch (Exception e) {
+            return false;
         }
     }
 

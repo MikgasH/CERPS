@@ -11,7 +11,9 @@ public class PeriodValidator implements ConstraintValidator<ValidPeriod, String>
 
     private static final int MIN_HOURS = 12;
     private static final int MAX_HOURS = 8760;
+    private static final int MIN_DAYS = 1;
     private static final int MAX_DAYS = 365;
+    private static final int MIN_MONTHS = 1;
     private static final int MAX_MONTHS = 12;
     private static final int MAX_YEARS = 1;
 
@@ -36,8 +38,8 @@ public class PeriodValidator implements ConstraintValidator<ValidPeriod, String>
 
             return switch (trimmed.charAt(trimmed.length() - 1)) {
                 case 'H' -> amount >= MIN_HOURS && amount <= MAX_HOURS;
-                case 'D' -> amount <= MAX_DAYS;
-                case 'M' -> amount <= MAX_MONTHS;
+                case 'D' -> amount >= MIN_DAYS && amount <= MAX_DAYS;
+                case 'M' -> amount >= MIN_MONTHS && amount <= MAX_MONTHS;
                 case 'Y' -> amount == MAX_YEARS;
                 default -> false;
             };

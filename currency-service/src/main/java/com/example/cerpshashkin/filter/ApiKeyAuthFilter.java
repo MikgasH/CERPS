@@ -15,7 +15,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -24,6 +30,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String API_KEY_HEADER = "X-API-Key";
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin";
+    private static final int MAX_REQUESTS_PER_MINUTE = 10;
+    private static final long WINDOW_MILLIS = 60_000L;
+
+    private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();
 
     @Value("${admin.api-key}")
     private String adminApiKey;
@@ -42,16 +52,27 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        final String clientIp = getClientIp(request);
+
+        if (isRateLimited(clientIp)) {
+            log.warn("AUDIT: Rate limit exceeded for admin endpoint. ip={}, path={}, timestamp={}",
+                    clientIp, requestPath, Instant.now());
+            sendTooManyRequests(response);
+            return;
+        }
+
         final String apiKey = request.getHeader(API_KEY_HEADER);
 
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("Missing API key for admin endpoint: {}", requestPath);
+            log.warn("AUDIT: Failed authentication attempt - missing API key. ip={}, path={}, timestamp={}",
+                    clientIp, requestPath, Instant.now());
             sendUnauthorized(response, "Missing API key");
             return;
         }
 
-        if (!apiKey.equals(adminApiKey)) {
-            log.warn("Invalid API key attempt for: {}", requestPath);
+        if (!constantTimeEquals(apiKey, adminApiKey)) {
+            log.warn("AUDIT: Failed authentication attempt - invalid API key. ip={}, path={}, timestamp={}",
+                    clientIp, requestPath, Instant.now());
             sendUnauthorized(response, "Invalid API key");
             return;
         }
@@ -72,6 +93,34 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
     }
 
+    private boolean constantTimeEquals(final String provided, final String expected) {
+        final byte[] providedBytes = provided.getBytes(StandardCharsets.UTF_8);
+        final byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(providedBytes, expectedBytes);
+    }
+
+    private boolean isRateLimited(final String clientIp) {
+        final long now = System.currentTimeMillis();
+        rateLimitMap.compute(clientIp, (key, entry) -> {
+            if (entry == null || now - entry.windowStart > WINDOW_MILLIS) {
+                return new RateLimitEntry(now, new AtomicInteger(1));
+            }
+            entry.counter.incrementAndGet();
+            return entry;
+        });
+
+        final RateLimitEntry entry = rateLimitMap.get(clientIp);
+        return entry != null && entry.counter.get() > MAX_REQUESTS_PER_MINUTE;
+    }
+
+    private String getClientIp(final HttpServletRequest request) {
+        final String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
     private void sendUnauthorized(final HttpServletResponse response, final String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
@@ -79,5 +128,23 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 "{\"error\": \"%s\", \"message\": \"Please provide valid X-API-Key header\"}",
                 message
         ));
+    }
+
+    private void sendTooManyRequests(final HttpServletResponse response) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        response.getWriter().write(
+                "{\"error\": \"Too many requests\", \"message\": \"Rate limit exceeded. Maximum 10 requests per minute.\"}"
+        );
+    }
+
+    private static class RateLimitEntry {
+        final long windowStart;
+        final AtomicInteger counter;
+
+        RateLimitEntry(final long windowStart, final AtomicInteger counter) {
+            this.windowStart = windowStart;
+            this.counter = counter;
+        }
     }
 }
