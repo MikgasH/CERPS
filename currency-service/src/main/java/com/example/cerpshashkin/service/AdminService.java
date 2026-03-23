@@ -8,6 +8,7 @@ import com.example.cerpshashkin.exception.InvalidCurrencyException;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class AdminService {
     private final SupportedCurrencyRepository supportedCurrencyRepository;
 
     @Transactional
+    @CacheEvict(value = "supportedCurrencies", allEntries = true)
     public void addCurrency(final String currencyCode) {
         final String normalized = validateAndNormalize(currencyCode);
 

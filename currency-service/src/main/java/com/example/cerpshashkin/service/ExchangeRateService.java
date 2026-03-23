@@ -49,24 +49,58 @@ public class ExchangeRateService {
     public CurrentRatesResponse getAllRatesForBase(final String baseCode) {
         final String normalized = baseCode.trim().toUpperCase();
         final Currency baseCurrency = Currency.getInstance(normalized);
+        final Currency eurCurrency = Currency.getInstance(baseCurrencyCode);
+        final Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
 
-        final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
+        // Single batch query: fetch all latest EUR-based rates in one DB roundtrip
+        final List<ExchangeRateEntity> latestRates = exchangeRateRepository
+                .findAllLatestByBaseCurrency(baseCurrencyCode, maxAge);
+
+        final Map<String, BigDecimal> eurBasedRates = latestRates.stream()
+                .collect(Collectors.toMap(
+                        e -> e.getTargetCurrency().getCurrencyCode(),
+                        ExchangeRateEntity::getRate
+                ));
+
+        // Cache the fetched rates
+        latestRates.forEach(entity ->
+                cache.putRate(eurCurrency, entity.getTargetCurrency(), entity.getRate()));
+
+        final Set<String> supportedCodes = supportedCurrencyRepository.findAll()
                 .stream()
                 .map(SupportedCurrencyEntity::getCurrencyCode)
-                .toList();
+                .collect(Collectors.toSet());
 
-        final Map<String, BigDecimal> rates = supportedCurrencies.stream()
-                .filter(code -> !code.equals(normalized))
-                .collect(Collectors.toMap(
-                        code -> code,
-                        code -> {
-                            final Currency target = Currency.getInstance(code);
-                            return getExchangeRate(baseCurrency, target)
-                                    .orElseThrow(() -> new ExchangeRateNotAvailableException(
-                                            normalized, code
-                                    ));
-                        }
-                ));
+        final Map<String, BigDecimal> rates;
+
+        if (normalized.equals(baseCurrencyCode)) {
+            // Base is EUR — use rates directly
+            rates = eurBasedRates.entrySet().stream()
+                    .filter(e -> supportedCodes.contains(e.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else {
+            // Cross-rate calculation through EUR
+            final BigDecimal baseRate = eurBasedRates.get(normalized);
+            if (baseRate == null) {
+                throw new ExchangeRateNotAvailableException(baseCurrencyCode, normalized);
+            }
+
+            rates = supportedCodes.stream()
+                    .filter(code -> !code.equals(normalized))
+                    .collect(Collectors.toMap(
+                            code -> code,
+                            code -> {
+                                if (code.equals(baseCurrencyCode)) {
+                                    return BigDecimal.ONE.divide(baseRate, SCALE, RoundingMode.HALF_UP);
+                                }
+                                final BigDecimal targetRate = eurBasedRates.get(code);
+                                if (targetRate == null) {
+                                    throw new ExchangeRateNotAvailableException(normalized, code);
+                                }
+                                return targetRate.divide(baseRate, SCALE, RoundingMode.HALF_UP);
+                            }
+                    ));
+        }
 
         return CurrentRatesResponse.success(normalized, rates);
     }

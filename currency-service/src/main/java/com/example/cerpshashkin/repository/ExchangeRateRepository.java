@@ -106,4 +106,17 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
     @Modifying
     @Query("DELETE FROM ExchangeRateEntity e WHERE e.timestamp < :cutoffDate")
     int deleteByTimestampBefore(@Param("cutoffDate") Instant cutoffDate);
+
+    @Query(value = """
+            SELECT DISTINCT ON (target_currency)
+                   id, base_currency, target_currency, rate, source, timestamp
+            FROM exchange_rates
+            WHERE base_currency = :baseCurrency
+              AND timestamp >= :maxAge
+            ORDER BY target_currency, timestamp DESC
+            """, nativeQuery = true)
+    List<ExchangeRateEntity> findAllLatestByBaseCurrency(
+            @Param("baseCurrency") String baseCurrency,
+            @Param("maxAge") Instant maxAge
+    );
 }

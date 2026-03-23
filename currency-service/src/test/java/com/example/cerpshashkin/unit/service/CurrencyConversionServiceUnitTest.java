@@ -2,6 +2,7 @@ package com.example.cerpshashkin.unit.service;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
+import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.CurrencyConversionService;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,11 +46,19 @@ class CurrencyConversionServiceUnitTest {
     @InjectMocks
     private CurrencyConversionService conversionService;
 
+    private static final List<SupportedCurrencyEntity> DEFAULT_SUPPORTED = List.of(
+            SupportedCurrencyEntity.builder().currencyCode("EUR").build(),
+            SupportedCurrencyEntity.builder().currencyCode("USD").build(),
+            SupportedCurrencyEntity.builder().currencyCode("GBP").build(),
+            SupportedCurrencyEntity.builder().currencyCode("CHF").build(),
+            SupportedCurrencyEntity.builder().currencyCode("JPY").build()
+    );
+
     @BeforeEach
     void setUp() {
         conversionService.initMetrics();
         // Mock all currencies as supported by default
-        when(supportedCurrencyRepository.existsByCurrencyCode(any(String.class))).thenReturn(true);
+        when(supportedCurrencyRepository.findAll()).thenReturn(DEFAULT_SUPPORTED);
     }
 
     @Test

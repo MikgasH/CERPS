@@ -7,10 +7,11 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Currency;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
@@ -21,8 +22,16 @@ public class CurrencyRateCache {
     private static final String LOG_DEBUG_RETRIEVED_RATE = "Retrieved cached rate {} -> {}: {}";
     private static final String LOG_INFO_CACHE_CLEARED = "Currency rate cache cleared";
     private static final String KEY_SEPARATOR = "_";
+    private static final int MAX_CACHE_SIZE = 1000;
 
-    private final Map<String, CachedRate> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedRate> cache = Collections.synchronizedMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(final Map.Entry<String, CachedRate> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            }
+    );
 
     @Value("${cache.exchange-rates.ttl:3600}")
     private long cacheTtlSeconds;

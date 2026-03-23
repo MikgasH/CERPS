@@ -7,6 +7,7 @@ import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class CurrencyService {
     private final ExchangeRateService exchangeRateService;
     private final SupportedCurrencyRepository supportedCurrencyRepository;
 
+    @Cacheable("supportedCurrencies")
     public List<String> getSupportedCurrencies() {
         return supportedCurrencyRepository.findAll()
                 .stream()

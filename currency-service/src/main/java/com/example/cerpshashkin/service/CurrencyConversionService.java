@@ -59,9 +59,19 @@ public class CurrencyConversionService {
                 final String fromCode = request.from().toUpperCase();
                 final String toCode = request.to().toUpperCase();
 
-                // Validate currencies are supported
-                validateSupportedCurrency(fromCode);
-                validateSupportedCurrency(toCode);
+                // Single DB query: fetch all supported currencies, then validate both
+                final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
+                        .stream()
+                        .map(SupportedCurrencyEntity::getCurrencyCode)
+                        .sorted()
+                        .toList();
+
+                if (!supportedCurrencies.contains(fromCode)) {
+                    throw new CurrencyNotSupportedException(fromCode, supportedCurrencies);
+                }
+                if (!supportedCurrencies.contains(toCode)) {
+                    throw new CurrencyNotSupportedException(toCode, supportedCurrencies);
+                }
 
                 final Currency fromCurrency = Currency.getInstance(fromCode);
                 final Currency toCurrency = Currency.getInstance(toCode);
@@ -114,14 +124,4 @@ public class CurrencyConversionService {
         );
     }
 
-    private void validateSupportedCurrency(final String currencyCode) {
-        if (!supportedCurrencyRepository.existsByCurrencyCode(currencyCode)) {
-            final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
-                    .stream()
-                    .map(SupportedCurrencyEntity::getCurrencyCode)
-                    .sorted()
-                    .toList();
-            throw new CurrencyNotSupportedException(currencyCode, supportedCurrencies);
-        }
-    }
 }

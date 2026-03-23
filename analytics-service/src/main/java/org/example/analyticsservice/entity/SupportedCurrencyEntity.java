@@ -27,7 +27,7 @@ public class SupportedCurrencyEntity {
     @SequenceGenerator(
             name = "supported_currencies_seq_gen",
             sequenceName = "supported_currencies_seq",
-            allocationSize = 1
+            allocationSize = 50
     )
     private Long id;
 
