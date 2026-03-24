@@ -71,7 +71,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.originalAmount()).isEqualTo(new BigDecimal("100"));
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("100"));
         assertThat(result.exchangeRate()).isEqualTo(BigDecimal.ONE);
@@ -94,7 +94,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.originalAmount()).isEqualTo(new BigDecimal("100"));
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("85.000000"));
         assertThat(result.exchangeRate()).isEqualTo(new BigDecimal("0.85"));
@@ -133,7 +133,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.fromCurrency()).isEqualTo("usd");
         assertThat(result.toCurrency()).isEqualTo("eur");
         verify(exchangeRateService).getExchangeRate(Currency.getInstance("USD"), Currency.getInstance("EUR"));
@@ -152,7 +152,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         // 123.45 × 0.876543 = 108.20923335 → HALF_UP to 6 decimals = 108.209233
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("108.209233"));
         assertThat(result.convertedAmount().scale()).isEqualTo(6);
@@ -187,7 +187,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("0.000000"));
     }
 
@@ -204,7 +204,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("850000.425000"));
     }
 
@@ -221,7 +221,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         // 99.99 × 156.789123 = 15677.34440877 → HALF_UP to 6 decimals = 15677.344409
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("15677.344409"));
         assertThat(result.convertedAmount().scale()).isEqualTo(6);
@@ -240,7 +240,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("100.000000"));
         assertThat(result.exchangeRate()).isEqualTo(BigDecimal.ONE);
     }
@@ -258,7 +258,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("6.543000"));
     }
 
@@ -272,7 +272,7 @@ class CurrencyConversionServiceUnitTest {
 
         final ConversionResponse result = conversionService.convertCurrency(request);
 
-        assertThat(result.success()).isTrue();
+
         assertThat(result.originalAmount()).isEqualTo(new BigDecimal("50.50"));
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("50.50"));
         assertThat(result.exchangeRate()).isEqualTo(BigDecimal.ONE);

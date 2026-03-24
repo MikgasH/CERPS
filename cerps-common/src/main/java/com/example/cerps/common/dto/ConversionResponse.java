@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record ConversionResponse(
-        boolean success,
         BigDecimal originalAmount,
         String fromCurrency,
         String toCurrency,
@@ -20,7 +19,6 @@ public record ConversionResponse(
             final BigDecimal rate
     ) {
         return new ConversionResponse(
-                true,
                 originalAmount,
                 from,
                 to,

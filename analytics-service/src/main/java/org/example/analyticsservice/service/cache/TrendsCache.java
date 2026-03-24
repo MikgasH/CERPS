@@ -28,7 +28,7 @@ public final class TrendsCache {
     );
 
     @Value("${cache.trends.ttl:28800}")
-    private long cacheTtlSeconds;
+    private long cacheTtlSeconds; // Default matches CerpsConstants.CACHE_TTL_SECONDS
 
     public Optional<TrendsResponse> get(final String from, final String to, final String period) {
         final String key = createKey(from, to, period);

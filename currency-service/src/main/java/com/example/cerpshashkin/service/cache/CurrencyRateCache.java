@@ -33,7 +33,7 @@ public class CurrencyRateCache {
             }
     );
 
-    @Value("${cache.exchange-rates.ttl:3600}")
+    @Value("${cache.exchange-rates.ttl:28800}")
     private long cacheTtlSeconds;
 
     public void putRate(final Currency from, final Currency to, final BigDecimal rate) {

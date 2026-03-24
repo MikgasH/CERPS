@@ -221,50 +221,6 @@ class ProviderKeyManagementServiceTest {
     }
 
     @Test
-    void should_RotateProviderKey_When_ValidRequest() {
-        Long id = 1L;
-        UpdateProviderKeyRequest request = new UpdateProviderKeyRequest("rotated_plaintext_key");
-        String rotatedEncryptedKey = "rotated_encrypted_key";
-
-        ApiProviderKeyEntity existingEntity = createEntity(id, "fixer", "old_encrypted_key", true);
-        ApiProviderKeyEntity rotatedEntity = createEntity(id, "fixer", rotatedEncryptedKey, true);
-
-        ProviderKeyResponse expectedResponse = new ProviderKeyResponse(
-                id, "fixer", true, Instant.now(), Instant.now()
-        );
-
-        when(repository.findById(id)).thenReturn(Optional.of(existingEntity));
-        when(encryptionService.encrypt("rotated_plaintext_key")).thenReturn(rotatedEncryptedKey);
-        when(repository.save(any(ApiProviderKeyEntity.class))).thenReturn(rotatedEntity);
-        when(mapper.toResponse(rotatedEntity)).thenReturn(expectedResponse);
-
-        ProviderKeyResponse result = service.rotateProviderKey(id, request);
-
-        assertThat(result).isNotNull();
-        assertThat(result.id()).isEqualTo(id);
-
-        verify(repository).findById(id);
-        verify(encryptionService).encrypt("rotated_plaintext_key");
-        verify(repository).save(existingEntity);
-        verify(mapper).toResponse(rotatedEntity);
-    }
-
-    @Test
-    void should_ThrowProviderKeyNotFoundException_When_RotateWithInvalidId() {
-        Long id = 999L;
-        UpdateProviderKeyRequest request = new UpdateProviderKeyRequest("rotated_key");
-
-        when(repository.findById(id)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.rotateProviderKey(id, request))
-                .isInstanceOf(ProviderKeyNotFoundException.class);
-
-        verify(repository).findById(id);
-        verify(encryptionService, never()).encrypt(anyString());
-        verify(repository, never()).save(any());
-    }
-
-    @Test
     void should_ReturnDecryptedKey_When_ProviderNameExists() {
         String providerName = "fixer";
         String encryptedKey = "encrypted_key_value";

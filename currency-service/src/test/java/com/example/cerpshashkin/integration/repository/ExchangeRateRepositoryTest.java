@@ -1,7 +1,7 @@
 package com.example.cerpshashkin.integration.repository;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
-import com.example.cerpshashkin.entity.ExchangeRateSource;
 import com.example.cerpshashkin.repository.ExchangeRateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,7 +158,7 @@ class ExchangeRateRepositoryTest {
                 .baseCurrency(EUR)
                 .targetCurrency(USD)
                 .rate(BigDecimal.valueOf(1.18))
-                .source(ExchangeRateSource.AGGREGATED)
+                .source(CerpsConstants.EXCHANGE_RATE_SOURCE_AGGREGATED)
                 .timestamp(now)
                 .build();
 
@@ -168,7 +168,7 @@ class ExchangeRateRepositoryTest {
         assertThat(saved.getBaseCurrency().getCurrencyCode()).isEqualTo("EUR");
         assertThat(saved.getTargetCurrency().getCurrencyCode()).isEqualTo("USD");
         assertThat(saved.getRate()).isEqualByComparingTo(BigDecimal.valueOf(1.18));
-        assertThat(saved.getSource()).isEqualTo(ExchangeRateSource.AGGREGATED);
+        assertThat(saved.getSource()).isEqualTo(CerpsConstants.EXCHANGE_RATE_SOURCE_AGGREGATED);
         assertThat(saved.getTimestamp()).isEqualTo(now);
     }
 
@@ -204,7 +204,7 @@ class ExchangeRateRepositoryTest {
                 .baseCurrency(base)
                 .targetCurrency(target)
                 .rate(rate)
-                .source(ExchangeRateSource.AGGREGATED)
+                .source(CerpsConstants.EXCHANGE_RATE_SOURCE_AGGREGATED)
                 .timestamp(timestamp)
                 .build();
     }

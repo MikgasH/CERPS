@@ -38,7 +38,7 @@ admin:
 
 cache:
   exchange-rates:
-    ttl: 3600
+    ttl: 28800
 
 scheduling:
   enabled: true

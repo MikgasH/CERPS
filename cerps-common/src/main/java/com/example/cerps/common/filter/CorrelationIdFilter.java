@@ -15,13 +15,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
+import static com.example.cerps.common.CerpsConstants.CORRELATION_ID_HEADER;
+import static com.example.cerps.common.CerpsConstants.CORRELATION_ID_MDC;
+import static com.example.cerps.common.CerpsConstants.SERVICE_NAME_MDC;
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
-
-    public static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
-    public static final String CORRELATION_ID_MDC = "correlationId";
-    public static final String SERVICE_NAME_MDC = "service";
 
     @Value("${spring.application.name:unknown-service}")
     private String serviceName;

@@ -1,8 +1,8 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.dto.CurrentRatesResponse;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
-import com.example.cerpshashkin.entity.ExchangeRateSource;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-    private static final int SCALE = 6;
     private static final int MAX_AGE_HOURS = 6;
 
     @Value("${exchange-rates.base-currency:EUR}")
@@ -91,13 +90,13 @@ public class ExchangeRateService {
                             code -> code,
                             code -> {
                                 if (code.equals(baseCurrencyCode)) {
-                                    return BigDecimal.ONE.divide(baseRate, SCALE, RoundingMode.HALF_UP);
+                                    return BigDecimal.ONE.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                                 }
                                 final BigDecimal targetRate = eurBasedRates.get(code);
                                 if (targetRate == null) {
                                     throw new ExchangeRateNotAvailableException(normalized, code);
                                 }
-                                return targetRate.divide(baseRate, SCALE, RoundingMode.HALF_UP);
+                                return targetRate.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                             }
                     ));
         }
@@ -132,7 +131,7 @@ public class ExchangeRateService {
                             .baseCurrency(baseCurrencyObj)
                             .targetCurrency(entry.getKey())
                             .rate(entry.getValue())
-                            .source(ExchangeRateSource.AGGREGATED)
+                            .source(CerpsConstants.EXCHANGE_RATE_SOURCE_AGGREGATED)
                             .timestamp(now)
                             .build()
                     )
@@ -166,7 +165,7 @@ public class ExchangeRateService {
         }
 
         final Optional<BigDecimal> inverse = cache.getRate(to, from)
-                .map(cached -> BigDecimal.ONE.divide(cached.rate(), SCALE, RoundingMode.HALF_UP));
+                .map(cached -> BigDecimal.ONE.divide(cached.rate(), CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
 
         if (inverse.isPresent()) {
             return inverse;
@@ -178,7 +177,7 @@ public class ExchangeRateService {
 
         if (fromRate.isPresent() && toRate.isPresent()) {
             return Optional.of(toRate.get().rate()
-                    .divide(fromRate.get().rate(), SCALE, RoundingMode.HALF_UP));
+                    .divide(fromRate.get().rate(), CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
         }
 
         return Optional.empty();
@@ -235,12 +234,12 @@ public class ExchangeRateService {
 
         if (to.equals(base)) {
             return Optional.ofNullable(rates.get(from))
-                    .map(rate -> BigDecimal.ONE.divide(rate, SCALE, RoundingMode.HALF_UP));
+                    .map(rate -> BigDecimal.ONE.divide(rate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
         }
 
         return Optional.ofNullable(rates.get(from))
                 .flatMap(fromRate -> Optional.ofNullable(rates.get(to))
-                        .map(toRate -> toRate.divide(fromRate, SCALE, RoundingMode.HALF_UP))
+                        .map(toRate -> toRate.divide(fromRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP))
                 );
     }
 

@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
@@ -26,7 +27,6 @@ public class CurrencyConversionService {
 
     private static final String LOG_CONVERTING = "Converting {} {} to {}";
     private static final String LOG_CONVERSION_SUCCESS = "Conversion successful: {} {} = {} {} (rate: {})";
-    private static final int SCALE = 6;
 
     private final ExchangeRateService exchangeRateService;
     private final SupportedCurrencyRepository supportedCurrencyRepository;
@@ -110,7 +110,7 @@ public class CurrencyConversionService {
 
         final BigDecimal convertedAmount = request.amount()
                 .multiply(rate)
-                .setScale(SCALE, RoundingMode.HALF_UP);
+                .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
 
         log.info(LOG_CONVERSION_SUCCESS,
                 request.amount(), request.from(), convertedAmount, request.to(), rate);

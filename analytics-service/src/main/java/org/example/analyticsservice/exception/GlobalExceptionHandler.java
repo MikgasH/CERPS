@@ -1,5 +1,6 @@
 package org.example.analyticsservice.exception;
 
+import com.example.cerps.common.CerpsConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -26,7 +27,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("Insufficient Data");
-        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "insufficient-data"));
         problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("suggestion", "Try fetching exchange rates first using POST /api/v1/currencies/refresh");
 
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("Currency Not Supported");
-        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "currency-not-supported"));
         problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("invalidCurrency", ex.getInvalidCurrency());
 
@@ -66,7 +67,7 @@ public class GlobalExceptionHandler {
                 "Validation failed for request parameters"
         );
         problemDetail.setTitle("Validation Error");
-        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "validation"));
         problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("errors", errors);
 
@@ -82,7 +83,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("Invalid Request");
-        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "invalid-request"));
         problemDetail.setProperty("timestamp", Instant.now());
 
         return problemDetail;
@@ -97,7 +98,7 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred"
         );
         problemDetail.setTitle("Internal Server Error");
-        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "internal"));
         problemDetail.setProperty("timestamp", Instant.now());
 
         return problemDetail;

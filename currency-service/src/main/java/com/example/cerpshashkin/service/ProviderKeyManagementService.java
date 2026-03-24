@@ -102,24 +102,6 @@ public class ProviderKeyManagementService {
         log.info("Provider key deactivated successfully with id: {}", id);
     }
 
-    @Transactional
-    @CacheEvict(value = "decryptedApiKeys", key = "#result.providerName()")
-    public ProviderKeyResponse rotateProviderKey(final Long id, final UpdateProviderKeyRequest request) {
-        log.info("Rotating provider key with id: {}", id);
-
-        ApiProviderKeyEntity entity = repository.findById(id)
-                .orElseThrow(() -> new ProviderKeyNotFoundException(id));
-
-        String encryptedKey = encryptionService.encrypt(request.apiKey());
-        entity.setEncryptedApiKey(encryptedKey);
-        entity.setUpdatedAt(Instant.now());
-
-        ApiProviderKeyEntity rotated = repository.save(entity);
-        log.info("Provider key rotated successfully with id: {}", rotated.getId());
-
-        return mapper.toResponse(rotated);
-    }
-
     @Transactional(readOnly = true)
     @Cacheable(value = "decryptedApiKeys", key = "#providerName")
     public String getDecryptedApiKey(final String providerName) {

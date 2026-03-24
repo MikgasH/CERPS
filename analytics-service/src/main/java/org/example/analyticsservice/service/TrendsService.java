@@ -1,5 +1,6 @@
 package org.example.analyticsservice.service;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,10 +35,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TrendsService {
-
-    private static final int SCALE = 2;
-    private static final int CALCULATION_SCALE = 6;
-    private static final int HUNDRED = 100;
 
     private final ExchangeRateRepository exchangeRateRepository;
     private final SupportedCurrencyRepository supportedCurrencyRepository;
@@ -93,10 +91,11 @@ public class TrendsService {
                     );
                 }
 
-                final List<RatePoint> points = rates.stream()
-                        .map(r -> new RatePoint(
-                                r.getTimestamp().toString(),
-                                r.getRate().doubleValue()))
+                final int maxPoints = getMaxPointsForPeriod(request.period());
+                final List<ExchangeRateEntity> sampled = downsample(rates, maxPoints);
+
+                final List<RatePoint> points = sampled.stream()
+                        .map(r -> new RatePoint(r.getTimestamp(), r.getRate()))
                         .toList();
 
                 if (rates.size() == 1) {
@@ -187,10 +186,40 @@ public class TrendsService {
         return Optional.of(oldRate)
                 .filter(rate -> rate.compareTo(BigDecimal.ZERO) != 0)
                 .map(rate -> newRate.subtract(rate)
-                        .divide(rate, CALCULATION_SCALE, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(HUNDRED))
-                        .setScale(SCALE, RoundingMode.HALF_UP))
+                        .divide(rate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(CerpsConstants.HUNDRED))
+                        .setScale(CerpsConstants.DISPLAY_SCALE, RoundingMode.HALF_UP))
                 .orElse(BigDecimal.ZERO);
+    }
+
+    static int getMaxPointsForPeriod(final String period) {
+        final String normalized = period.trim().toUpperCase();
+        return switch (normalized) {
+            case "1D" -> CerpsConstants.MAX_POINTS_1D;
+            case "7D" -> CerpsConstants.MAX_POINTS_7D;
+            case "30D" -> CerpsConstants.MAX_POINTS_30D;
+            case "90D" -> CerpsConstants.MAX_POINTS_90D;
+            case "180D" -> CerpsConstants.MAX_POINTS_180D;
+            default -> CerpsConstants.MAX_POINTS_180D;
+        };
+    }
+
+    static <T> List<T> downsample(final List<T> data, final int maxPoints) {
+        if (data.size() <= maxPoints) {
+            return data;
+        }
+
+        final List<T> result = new ArrayList<>(maxPoints);
+        result.add(data.getFirst());
+
+        final int innerPoints = maxPoints - 2;
+        for (int i = 1; i <= innerPoints; i++) {
+            final int index = (int) Math.round((double) i * (data.size() - 1) / (maxPoints - 1));
+            result.add(data.get(index));
+        }
+
+        result.add(data.getLast());
+        return result;
     }
 
     private List<ExchangeRateEntity> convertToEntityList(final List<Object[]> results) {

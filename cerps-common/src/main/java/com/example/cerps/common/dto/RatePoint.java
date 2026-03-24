@@ -1,7 +1,10 @@
 package com.example.cerps.common.dto;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+
 public record RatePoint(
-        String timestamp,
-        Double rate
+        Instant timestamp,
+        BigDecimal rate
 ) {
 }

@@ -10,7 +10,7 @@ COPY cerps-common cerps-common
 COPY currency-service currency-service
 COPY analytics-service analytics-service
 
-RUN mvn clean package -pl currency-service -am -Dmaven.test.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true
+RUN mvn clean package -pl currency-service -am -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre-alpine
 

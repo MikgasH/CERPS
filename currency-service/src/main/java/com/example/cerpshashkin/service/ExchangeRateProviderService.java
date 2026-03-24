@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
@@ -22,8 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ExchangeRateProviderService {
 
-    private static final int SCALE = 6;
-    private static final BigDecimal MAX_RATE = BigDecimal.valueOf(1_000_000);
+    private static final BigDecimal MAX_RATE = BigDecimal.valueOf(CerpsConstants.MAX_RATE_VALUE);
 
     @Value("${exchange-rates.base-currency:EUR}")
     private String baseCurrencyCode;
@@ -191,12 +191,12 @@ public class ExchangeRateProviderService {
                             .collect(Collectors.toMap(
                                     Map.Entry::getKey,
                                     entry -> entry.getValue()
-                                            .divide(conversionFactor, SCALE, RoundingMode.HALF_UP)
+                                            .divide(conversionFactor, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP)
                             ));
 
                     normalizedRates.put(
                             sourceBase,
-                            BigDecimal.ONE.divide(conversionFactor, SCALE, RoundingMode.HALF_UP)
+                            BigDecimal.ONE.divide(conversionFactor, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP)
                     );
 
                     return normalizedRates;
@@ -225,7 +225,7 @@ public class ExchangeRateProviderService {
                     if (size % 2 == 0) {
                         return sorted.get(middle - 1)
                                 .add(sorted.get(middle))
-                                .divide(BigDecimal.valueOf(2), SCALE, RoundingMode.HALF_UP);
+                                .divide(BigDecimal.valueOf(2), CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                     }
                     return sorted.get(middle);
                 })

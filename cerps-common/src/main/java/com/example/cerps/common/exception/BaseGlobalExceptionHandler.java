@@ -1,5 +1,6 @@
 package com.example.cerps.common.exception;
 
+import com.example.cerps.common.CerpsConstants;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -22,7 +23,7 @@ public abstract class BaseGlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("Invalid Currency");
-        problemDetail.setType(URI.create("https://cerps.example.com/errors/invalid-currency"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "invalid-currency"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
@@ -35,7 +36,7 @@ public abstract class BaseGlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("Invalid Period");
-        problemDetail.setType(URI.create("https://cerps.example.com/errors/invalid-period"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "invalid-period"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
@@ -48,7 +49,7 @@ public abstract class BaseGlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setTitle("External Service Error");
-        problemDetail.setType(URI.create("https://cerps.example.com/errors/external-service"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "external-service"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
@@ -68,7 +69,7 @@ public abstract class BaseGlobalExceptionHandler {
                 "Validation failed"
         );
         problemDetail.setTitle("Validation Error");
-        problemDetail.setType(URI.create("https://cerps.example.com/errors/validation"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "validation"));
         problemDetail.setProperty("errors", errors);
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
@@ -82,15 +83,15 @@ public abstract class BaseGlobalExceptionHandler {
                 "An unexpected error occurred"
         );
         problemDetail.setTitle("Internal Server Error");
-        problemDetail.setType(URI.create("https://cerps.example.com/errors/internal"));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "internal"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 
-    protected ProblemDetail createProblemDetail(HttpStatus status, String title, String detail, String type) {
+    protected ProblemDetail createProblemDetail(HttpStatus status, String title, String detail, String errorType) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setTitle(title);
-        problemDetail.setType(URI.create(type));
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + errorType));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
