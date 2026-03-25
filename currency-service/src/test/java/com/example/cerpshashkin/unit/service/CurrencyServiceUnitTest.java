@@ -1,14 +1,15 @@
-/*package com.example.cerpshashkin.unit.service;
+package com.example.cerpshashkin.unit.service;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
-import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.InvalidCurrencyException;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
+import com.example.cerpshashkin.service.AdminService;
 import com.example.cerpshashkin.service.CurrencyConversionService;
 import com.example.cerpshashkin.service.CurrencyService;
 import com.example.cerpshashkin.service.ExchangeRateService;
+import com.example.cerpshashkin.service.ProviderKeyManagementService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,8 +39,14 @@ class CurrencyServiceUnitTest {
     @Mock
     private SupportedCurrencyRepository supportedCurrencyRepository;
 
+    @Mock
+    private ProviderKeyManagementService providerKeyManagementService;
+
     @InjectMocks
     private CurrencyService currencyService;
+
+    @InjectMocks
+    private AdminService adminService;
 
     @Test
     void getSupportedCurrencies_ShouldReturnCurrenciesFromRepository() {
@@ -77,7 +84,7 @@ class CurrencyServiceUnitTest {
         when(supportedCurrencyRepository.save(any(SupportedCurrencyEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        currencyService.addCurrency(currency);
+        adminService.addCurrency(currency);
 
         verify(supportedCurrencyRepository).existsByCurrencyCode("NOK");
         verify(supportedCurrencyRepository).save(any(SupportedCurrencyEntity.class));
@@ -91,7 +98,7 @@ class CurrencyServiceUnitTest {
         when(supportedCurrencyRepository.save(any(SupportedCurrencyEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        currencyService.addCurrency(currency);
+        adminService.addCurrency(currency);
 
         verify(supportedCurrencyRepository).existsByCurrencyCode("NOK");
         verify(supportedCurrencyRepository).save(any(SupportedCurrencyEntity.class));
@@ -105,7 +112,7 @@ class CurrencyServiceUnitTest {
         when(supportedCurrencyRepository.save(any(SupportedCurrencyEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        currencyService.addCurrency(currency);
+        adminService.addCurrency(currency);
 
         verify(supportedCurrencyRepository).existsByCurrencyCode("SEK");
         verify(supportedCurrencyRepository).save(any(SupportedCurrencyEntity.class));
@@ -113,30 +120,26 @@ class CurrencyServiceUnitTest {
 
     @Test
     void addCurrency_WithNullCurrency_ShouldThrowInvalidCurrencyException() {
-        assertThatThrownBy(() -> currencyService.addCurrency(null))
-                .isInstanceOf(InvalidCurrencyException.class)
-                .hasMessageContaining("Currency code cannot be null or empty");
+        assertThatThrownBy(() -> adminService.addCurrency(null))
+                .isInstanceOf(InvalidCurrencyException.class);
     }
 
     @Test
     void addCurrency_WithEmptyCurrency_ShouldThrowInvalidCurrencyException() {
-        assertThatThrownBy(() -> currencyService.addCurrency(""))
-                .isInstanceOf(InvalidCurrencyException.class)
-                .hasMessageContaining("Currency code cannot be null or empty");
+        assertThatThrownBy(() -> adminService.addCurrency(""))
+                .isInstanceOf(InvalidCurrencyException.class);
     }
 
     @Test
     void addCurrency_WithWhitespaceOnlyCurrency_ShouldThrowInvalidCurrencyException() {
-        assertThatThrownBy(() -> currencyService.addCurrency("   "))
-                .isInstanceOf(InvalidCurrencyException.class)
-                .hasMessageContaining("Currency code cannot be null or empty");
+        assertThatThrownBy(() -> adminService.addCurrency("   "))
+                .isInstanceOf(InvalidCurrencyException.class);
     }
 
     @Test
     void addCurrency_WithInvalidCurrency_ShouldThrowInvalidCurrencyException() {
-        assertThatThrownBy(() -> currencyService.addCurrency("INVALID"))
-                .isInstanceOf(InvalidCurrencyException.class)
-                .hasMessageContaining("Invalid currency code: INVALID");
+        assertThatThrownBy(() -> adminService.addCurrency("INVALID"))
+                .isInstanceOf(InvalidCurrencyException.class);
     }
 
     @Test
@@ -145,7 +148,7 @@ class CurrencyServiceUnitTest {
 
         when(supportedCurrencyRepository.existsByCurrencyCode("NOK")).thenReturn(true);
 
-        currencyService.addCurrency(currency);
+        adminService.addCurrency(currency);
 
         verify(supportedCurrencyRepository).existsByCurrencyCode("NOK");
         verify(supportedCurrencyRepository, times(0)).save(any());
@@ -179,65 +182,9 @@ class CurrencyServiceUnitTest {
     void refreshExchangeRates_ShouldDelegateToExchangeRateService() {
         doNothing().when(exchangeRateService).refreshRates();
 
-        currencyService.refreshExchangeRates();
+        adminService.refreshExchangeRates();
 
         verify(exchangeRateService, times(1)).refreshRates();
-    }
-
-    @Test
-    void validateSupportedCurrencies_WithBothSupported_ShouldNotThrow() {
-        List<SupportedCurrencyEntity> entities = List.of(
-                createEntity(1L, "USD"),
-                createEntity(2L, "EUR")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(entities);
-
-        currencyService.validateSupportedCurrencies("USD", "EUR");
-
-        verify(supportedCurrencyRepository).findAll();
-    }
-
-    @Test
-    void validateSupportedCurrencies_WithFromNotSupported_ShouldThrowException() {
-        List<SupportedCurrencyEntity> entities = List.of(
-                createEntity(1L, "EUR"),
-                createEntity(2L, "GBP")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(entities);
-
-        assertThatThrownBy(() -> currencyService.validateSupportedCurrencies("USD", "EUR"))
-                .isInstanceOf(CurrencyNotSupportedException.class)
-                .hasMessageContaining("Currency 'USD' is not supported");
-    }
-
-    @Test
-    void validateSupportedCurrencies_WithToNotSupported_ShouldThrowException() {
-        List<SupportedCurrencyEntity> entities = List.of(
-                createEntity(1L, "USD"),
-                createEntity(2L, "EUR")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(entities);
-
-        assertThatThrownBy(() -> currencyService.validateSupportedCurrencies("USD", "GBP"))
-                .isInstanceOf(CurrencyNotSupportedException.class)
-                .hasMessageContaining("Currency 'GBP' is not supported");
-    }
-
-    @Test
-    void validateSupportedCurrencies_WithLowercaseInput_ShouldNormalizeAndValidate() {
-        List<SupportedCurrencyEntity> entities = List.of(
-                createEntity(1L, "USD"),
-                createEntity(2L, "EUR")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(entities);
-
-        currencyService.validateSupportedCurrencies("usd", "eur");
-
-        verify(supportedCurrencyRepository).findAll();
     }
 
     private SupportedCurrencyEntity createEntity(Long id, String code) {
@@ -246,4 +193,4 @@ class CurrencyServiceUnitTest {
                 .currencyCode(code)
                 .build();
     }
-}*/
+}

@@ -1,4 +1,4 @@
-/*package com.example.cerpshashkin.integration.client;
+package com.example.cerpshashkin.integration.client;
 
 import com.example.cerpshashkin.integration.BaseWireMockTest;
 import com.example.cerpshashkin.client.impl.ExchangeRatesClient;
@@ -136,4 +136,4 @@ class ExchangeRatesClientIntegrationTest extends BaseWireMockTest {
     void getProviderName_ShouldReturnExchangeRatesAPI() {
         assertThat(exchangeRatesClient.getProviderName()).isEqualTo("ExchangeRatesAPI");
     }
-}*/
+}

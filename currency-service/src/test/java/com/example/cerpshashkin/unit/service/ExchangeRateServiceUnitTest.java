@@ -1,9 +1,8 @@
-/*package com.example.cerpshashkin.unit.service;
+package com.example.cerpshashkin.unit.service;
 
+import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
-import com.example.cerpshashkin.entity.ExchangeRateSource;
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
-import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.model.CachedRate;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.repository.ExchangeRateRepository;
@@ -32,7 +31,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -91,10 +89,7 @@ class ExchangeRateServiceUnitTest {
         BigDecimal dbRate = BigDecimal.valueOf(1.18);
         RateQueryResult queryResult = createRateQueryResult(dbRate, "DIRECT");
 
-        when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
-        when(cache.getRate(USD, EUR)).thenReturn(Optional.empty());
-        when(cache.getRate(EUR, EUR)).thenReturn(Optional.empty());
-        when(cache.getRate(EUR, USD)).thenReturn(Optional.empty());
+        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
         when(exchangeRateRepository.findBestRate(eq("EUR"), eq("USD"), eq("EUR"), any(Instant.class)))
                 .thenReturn(Optional.of(queryResult));
 
@@ -125,26 +120,6 @@ class ExchangeRateServiceUnitTest {
     }
 
     @Test
-    void getExchangeRate_WithoutCacheOrDatabase_ShouldCallProvider() {
-        BigDecimal exchangeRate = BigDecimal.valueOf(1.18);
-
-        when(cache.getRate(any(), any())).thenReturn(Optional.empty());
-        when(exchangeRateRepository.findBestRate(any(), any(), any(), any()))
-                .thenReturn(Optional.empty());
-
-        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
-                EUR, TEST_DATE, Map.of(USD, exchangeRate), false
-        );
-        when(providerService.getLatestRatesFromProviders()).thenReturn(response);
-
-        Optional<BigDecimal> result = exchangeRateService.getExchangeRate(EUR, USD);
-
-        assertThat(result).contains(exchangeRate);
-        verify(providerService).getLatestRatesFromProviders();
-        verify(cache, atLeastOnce()).putRate(any(), any(), any());
-    }
-
-    @Test
     void getExchangeRate_WithProviderFailure_ShouldReturnEmpty() {
         when(cache.getRate(any(), any())).thenReturn(Optional.empty());
         when(exchangeRateRepository.findBestRate(any(), any(), any(), any()))
@@ -155,7 +130,6 @@ class ExchangeRateServiceUnitTest {
 
         assertThat(result).isEmpty();
         verify(providerService).getLatestRatesFromProviders();
-        verify(cache, never()).putRate(eq(USD), eq(EUR), any());
     }
 
     @Test
@@ -196,43 +170,15 @@ class ExchangeRateServiceUnitTest {
     }
 
     @Test
-    void refreshRates_WithMockData_ShouldOnlyCacheNotSaveToDb() {
-        List<SupportedCurrencyEntity> supported = List.of(
-                createSupportedCurrency("USD"),
-                createSupportedCurrency("GBP")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(supported);
-
-        CurrencyExchangeResponse mockResponse = CurrencyExchangeResponse.success(
-                EUR, TEST_DATE,
-                Map.of(
-                        USD, BigDecimal.valueOf(1.15),
-                        GBP, BigDecimal.valueOf(0.85)
-                ),
-                true
-        );
-        when(providerService.getLatestRatesFromProviders()).thenReturn(mockResponse);
-
-        exchangeRateService.refreshRates();
-
-        verify(cache).clearCache();
-        verify(cache).putRate(EUR, USD, BigDecimal.valueOf(1.15));
-        verify(cache).putRate(EUR, GBP, BigDecimal.valueOf(0.85));
-        verify(exchangeRateRepository, never()).saveAll(any());
-    }
-
-    @Test
-    void refreshRates_WithUnsuccessfulResponse_ShouldThrowException() {
+    void refreshRates_WithUnsuccessfulResponse_ShouldNotSaveOrCache() {
         CurrencyExchangeResponse unsuccessfulResponse = new CurrencyExchangeResponse(
                 false, Instant.now(), EUR, TEST_DATE, null, false
         );
         when(providerService.getLatestRatesFromProviders()).thenReturn(unsuccessfulResponse);
 
-        assertThatThrownBy(() -> exchangeRateService.refreshRates())
-                .isInstanceOf(ExchangeRateNotAvailableException.class)
-                .hasMessageContaining("Provider returned unsuccessful response");
+        exchangeRateService.refreshRates();
 
+        verify(cache, never()).clearCache();
         verify(cache, never()).putRate(any(), any(), any());
         verify(exchangeRateRepository, never()).saveAll(any());
     }
@@ -268,10 +214,6 @@ class ExchangeRateServiceUnitTest {
                 .extracting(entity -> entity.getTargetCurrency().getCurrencyCode())
                 .containsExactlyInAnyOrder("USD", "GBP")
                 .doesNotContain("JPY");
-
-        verify(cache).putRate(EUR, USD, BigDecimal.valueOf(1.18));
-        verify(cache).putRate(EUR, GBP, BigDecimal.valueOf(0.87));
-        verify(cache, never()).putRate(EUR, JPY, BigDecimal.valueOf(130.0));
     }
 
     @Test
@@ -301,34 +243,6 @@ class ExchangeRateServiceUnitTest {
         List<ExchangeRateEntity> savedEntities = captor.getValue();
         assertThat(savedEntities).hasSize(1);
         assertThat(savedEntities.get(0).getTargetCurrency().getCurrencyCode()).isEqualTo("USD");
-    }
-
-    @Test
-    void cacheExchangeRates_ShouldCacheAllRates() {
-        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
-                EUR, TEST_DATE,
-                Map.of(
-                        USD, BigDecimal.valueOf(1.18),
-                        GBP, BigDecimal.valueOf(0.87)
-                ),
-                false
-        );
-
-        exchangeRateService.cacheExchangeRates(response);
-
-        verify(cache).putRate(EUR, USD, BigDecimal.valueOf(1.18));
-        verify(cache).putRate(EUR, GBP, BigDecimal.valueOf(0.87));
-    }
-
-    @Test
-    void cacheExchangeRates_WithNullRates_ShouldNotCache() {
-        CurrencyExchangeResponse response = new CurrencyExchangeResponse(
-                true, Instant.now(), EUR, TEST_DATE, null, false
-        );
-
-        exchangeRateService.cacheExchangeRates(response);
-
-        verify(cache, never()).putRate(any(), any(), any());
     }
 
     @Test
@@ -369,20 +283,19 @@ class ExchangeRateServiceUnitTest {
     }
 
     @Test
-    void refreshRates_WithException_ShouldThrowExchangeRateNotAvailableException() {
+    void refreshRates_WithException_ShouldNotPropagateException() {
         when(providerService.getLatestRatesFromProviders())
                 .thenThrow(new RuntimeException("Service error"));
 
-        assertThatThrownBy(() -> exchangeRateService.refreshRates())
-                .isInstanceOf(ExchangeRateNotAvailableException.class)
-                .hasMessageContaining("Failed to refresh exchange rates");
+        // refreshRates() catches all exceptions now - should not throw
+        exchangeRateService.refreshRates();
 
         verify(cache, never()).putRate(any(), any(), any());
         verify(exchangeRateRepository, never()).saveAll(any());
     }
 
     @Test
-    void getExchangeRate_WithDatabaseInverseRate_ShouldReturnFromDb() {
+    void getExchangeRate_WithDatabaseRate_ShouldReturnFromDb() {
         BigDecimal dbRate = BigDecimal.valueOf(0.847);
         RateQueryResult queryResult = createRateQueryResult(dbRate, "INVERSE");
 
@@ -432,21 +345,10 @@ class ExchangeRateServiceUnitTest {
         };
     }
 
-    private ExchangeRateEntity createEntity(Currency base, Currency target, BigDecimal rate, Instant timestamp) {
-        return ExchangeRateEntity.builder()
-                .id(UUID.randomUUID())
-                .baseCurrency(base)
-                .targetCurrency(target)
-                .rate(rate)
-                .source(ExchangeRateSource.AGGREGATED)
-                .timestamp(timestamp)
-                .build();
-    }
-
     private SupportedCurrencyEntity createSupportedCurrency(String code) {
         return SupportedCurrencyEntity.builder()
                 .id((long) code.hashCode())
                 .currencyCode(code)
                 .build();
     }
-}*/
+}

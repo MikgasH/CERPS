@@ -47,7 +47,7 @@ public class ExchangeRateService {
 
     public CurrentRatesResponse getAllRatesForBase(final String baseCode) {
         final String normalized = baseCode.trim().toUpperCase();
-        final Currency baseCurrency = Currency.getInstance(normalized);
+        Currency.getInstance(normalized);
         final Currency eurCurrency = Currency.getInstance(baseCurrencyCode);
         final Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
 

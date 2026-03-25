@@ -1,4 +1,4 @@
-/*package com.example.cerpshashkin.integration.service;
+package com.example.cerpshashkin.integration.service;
 
 import com.example.cerpshashkin.integration.BaseWireMockTest;
 import com.example.cerpshashkin.service.ExchangeRateService;
@@ -23,7 +23,7 @@ class ExchangeRateServiceCacheIntegrationTest extends BaseWireMockTest {
     private Currency jpy;
 
     @BeforeEach
-    void setUp() {
+    void setUpCurrencies() {
         eur = Currency.getInstance("EUR");
         usd = Currency.getInstance("USD");
         gbp = Currency.getInstance("GBP");
@@ -175,4 +175,4 @@ class ExchangeRateServiceCacheIntegrationTest extends BaseWireMockTest {
                 org.assertj.core.data.Offset.offset(new BigDecimal("0.000001"))
         );
     }
-}*/
+}

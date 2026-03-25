@@ -47,6 +47,9 @@ jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tdGVzdGluZy1wdXJwb3Nlcy1vbmx5LTEyMzQ1Njc4OTA=
   expiration: 86400000
 
+admin:
+  api-key: test-admin-api-key
+
 encryption:
   master-key: xtCPEriABFzNjq7KmLK5BmGt8vbWPq0PcB1C7Y8DxNo=
 

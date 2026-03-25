@@ -1,4 +1,4 @@
-/*package com.example.cerpshashkin.integration.client;
+package com.example.cerpshashkin.integration.client;
 
 import com.example.cerpshashkin.integration.BaseWireMockTest;
 import com.example.cerpshashkin.client.impl.FixerioClient;
@@ -136,4 +136,4 @@ class FixerioClientIntegrationTest extends BaseWireMockTest {
     void getProviderName_ShouldReturnFixerio() {
         assertThat(fixerioClient.getProviderName()).isEqualTo("Fixer.io");
     }
-}*/
+}

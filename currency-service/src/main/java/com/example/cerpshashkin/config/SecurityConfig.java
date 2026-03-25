@@ -2,6 +2,7 @@ package com.example.cerpshashkin.config;
 
 import com.example.cerpshashkin.filter.ApiKeyAuthFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -46,5 +47,13 @@ public class SecurityConfig {
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<ApiKeyAuthFilter> disableApiKeyFilterAutoRegistration() {
+        final FilterRegistrationBean<ApiKeyAuthFilter> registration =
+                new FilterRegistrationBean<>(apiKeyAuthFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

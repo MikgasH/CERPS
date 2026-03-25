@@ -1,4 +1,4 @@
-/*package com.example.cerpshashkin.unit.service;
+package com.example.cerpshashkin.unit.service;
 
 import com.example.cerpshashkin.client.ApiProvider;
 import com.example.cerpshashkin.client.ExchangeRateClient;
@@ -20,9 +20,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,9 +39,6 @@ class ExchangeRateProviderServiceUnitTest {
     @Mock
     private ExchangeRateClient currencyApiClient;
 
-    @Mock
-    private ExchangeRateClient mockClient;
-
     private ExchangeRateProviderService providerService;
 
     @BeforeEach
@@ -52,9 +46,8 @@ class ExchangeRateProviderServiceUnitTest {
         when(fixerClient.getProviderName()).thenReturn(ApiProvider.FIXER.getDisplayName());
         when(exchangeRatesClient.getProviderName()).thenReturn(ApiProvider.EXCHANGE_RATES.getDisplayName());
         when(currencyApiClient.getProviderName()).thenReturn(ApiProvider.CURRENCY_API.getDisplayName());
-        when(mockClient.getProviderName()).thenReturn(ApiProvider.MOCK_SERVICE_1.getDisplayName());
 
-        List<ExchangeRateClient> clients = List.of(fixerClient, exchangeRatesClient, currencyApiClient, mockClient);
+        List<ExchangeRateClient> clients = List.of(fixerClient, exchangeRatesClient, currencyApiClient);
         providerService = new ExchangeRateProviderService(clients);
         ReflectionTestUtils.setField(providerService, "baseCurrencyCode", "EUR");
     }
@@ -80,9 +73,6 @@ class ExchangeRateProviderServiceUnitTest {
         assertThat(result.success()).isTrue();
         assertThat(result.base()).isEqualTo(EUR);
         assertThat(result.rates()).containsEntry(USD, new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
-
-        verify(mockClient, never()).getLatestRates();
     }
 
     @Test
@@ -103,9 +93,6 @@ class ExchangeRateProviderServiceUnitTest {
         assertThat(result.success()).isTrue();
         assertThat(result.base()).isEqualTo(EUR);
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
-
-        verify(mockClient, never()).getLatestRates();
     }
 
     @Test
@@ -123,28 +110,16 @@ class ExchangeRateProviderServiceUnitTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
     }
 
     @Test
-    void getLatestRatesFromProviders_WithAllProvidersFail_ShouldUseMock() {
-        CurrencyExchangeResponse mockResponse = CurrencyExchangeResponse.success(
-                EUR, TEST_DATE, Map.of(USD, new BigDecimal("1.20")), false
-        );
-
+    void getLatestRatesFromProviders_WithAllProvidersFail_ShouldThrowException() {
         when(fixerClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
         when(exchangeRatesClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
         when(currencyApiClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
 
-        when(mockClient.getLatestRates()).thenReturn(mockResponse);
-
-        CurrencyExchangeResponse result = providerService.getLatestRatesFromProviders();
-
-        assertThat(result.success()).isTrue();
-        assertThat(result.rates()).containsEntry(USD, new BigDecimal("1.20"));
-        assertThat(result.isMockData()).isTrue();
-
-        verify(mockClient).getLatestRates();
+        assertThatThrownBy(() -> providerService.getLatestRatesFromProviders())
+                .isInstanceOf(AllProvidersFailedException.class);
     }
 
     @Test
@@ -164,7 +139,6 @@ class ExchangeRateProviderServiceUnitTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
     }
 
     @Test
@@ -191,20 +165,6 @@ class ExchangeRateProviderServiceUnitTest {
         assertThat(result.success()).isTrue();
         assertThat(result.rates()).containsEntry(USD, new BigDecimal("1.18"));
         assertThat(result.rates()).containsEntry(GBP, new BigDecimal("0.87"));
-        assertThat(result.isMockData()).isFalse();
-    }
-
-    @Test
-    void getLatestRatesFromProviders_WithAllFailuresIncludingMock_ShouldThrowException() {
-        when(fixerClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
-        when(exchangeRatesClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
-        when(currencyApiClient.getLatestRates()).thenThrow(new RuntimeException("Failed"));
-        when(mockClient.getLatestRates()).thenThrow(new RuntimeException("Mock failed"));
-
-        assertThatThrownBy(() -> providerService.getLatestRatesFromProviders())
-                .isInstanceOf(AllProvidersFailedException.class);
-
-        verify(mockClient).getLatestRates();
     }
 
     @Test
@@ -224,7 +184,6 @@ class ExchangeRateProviderServiceUnitTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.15"));
-        assertThat(result.isMockData()).isFalse();
     }
 
     @Test
@@ -241,7 +200,6 @@ class ExchangeRateProviderServiceUnitTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
     }
 
     @Test
@@ -261,6 +219,5 @@ class ExchangeRateProviderServiceUnitTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.rates().get(USD)).isEqualByComparingTo(new BigDecimal("1.18"));
-        assertThat(result.isMockData()).isFalse();
     }
-}*/
+}

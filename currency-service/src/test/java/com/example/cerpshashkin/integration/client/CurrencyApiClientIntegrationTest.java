@@ -1,4 +1,4 @@
-/*package com.example.cerpshashkin.integration.client;
+package com.example.cerpshashkin.integration.client;
 
 import com.example.cerpshashkin.integration.BaseWireMockTest;
 import com.example.cerpshashkin.client.impl.CurrencyApiClient;
@@ -133,4 +133,4 @@ class CurrencyApiClientIntegrationTest extends BaseWireMockTest {
     void getProviderName_ShouldReturnCurrencyAPI() {
         assertThat(currencyApiClient.getProviderName()).isEqualTo("CurrencyAPI");
     }
-}*/
+}
