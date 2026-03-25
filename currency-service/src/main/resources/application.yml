@@ -10,6 +10,12 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
@@ -27,9 +33,9 @@ spring:
 
 api:
   fixer:
-    url: http://data.fixer.io/api
+    url: https://data.fixer.io/api
   exchangerates:
-    url: http://api.exchangeratesapi.io/v1
+    url: https://api.exchangeratesapi.io/v1
   currencyapi:
     url: https://api.currencyapi.com/v3
 

@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Insufficient Data");
         problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "insufficient-data"));
         problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("suggestion", "Try fetching exchange rates first using POST /api/v1/currencies/refresh");
+        problemDetail.setProperty("suggestion", "Try fetching exchange rates first using POST /api/v1/admin/refresh");
 
         return problemDetail;
     }

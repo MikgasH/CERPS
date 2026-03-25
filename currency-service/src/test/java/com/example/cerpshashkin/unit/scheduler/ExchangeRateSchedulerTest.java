@@ -2,12 +2,15 @@ package com.example.cerpshashkin.unit.scheduler;
 
 import com.example.cerpshashkin.scheduler.ExchangeRateScheduler;
 import com.example.cerpshashkin.service.ExchangeRateService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -22,6 +25,11 @@ class ExchangeRateSchedulerTest {
     @InjectMocks
     private ExchangeRateScheduler scheduler;
 
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(scheduler, "initRetryDelaySeconds", 0L);
+    }
+
     @Test
     void initializeExchangeRates_WithSuccessfulRefresh_ShouldComplete() {
         doNothing().when(exchangeRateService).refreshRates();
@@ -32,13 +40,25 @@ class ExchangeRateSchedulerTest {
     }
 
     @Test
-    void initializeExchangeRates_WithFailure_ShouldLogErrorAndNotThrow() {
+    void initializeExchangeRates_WithAllRetriesFailing_ShouldNotThrow() {
         doThrow(new RuntimeException("All providers failed"))
+                .when(exchangeRateService).refreshRates();
+
+        assertThatCode(() -> scheduler.initializeExchangeRates())
+                .doesNotThrowAnyException();
+
+        verify(exchangeRateService, times(3)).refreshRates();
+    }
+
+    @Test
+    void initializeExchangeRates_WithSecondAttemptSucceeding_ShouldStopRetrying() {
+        doThrow(new RuntimeException("First attempt failed"))
+                .doNothing()
                 .when(exchangeRateService).refreshRates();
 
         scheduler.initializeExchangeRates();
 
-        verify(exchangeRateService, times(1)).refreshRates();
+        verify(exchangeRateService, times(2)).refreshRates();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.example.cerpshashkin.config;
 
 import com.example.cerpshashkin.filter.ApiKeyAuthFilter;
+import com.example.cerpshashkin.filter.PublicRateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +30,7 @@ public class SecurityConfig {
     };
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final PublicRateLimitFilter publicRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -44,6 +46,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -53,6 +56,14 @@ public class SecurityConfig {
     public FilterRegistrationBean<ApiKeyAuthFilter> disableApiKeyFilterAutoRegistration() {
         final FilterRegistrationBean<ApiKeyAuthFilter> registration =
                 new FilterRegistrationBean<>(apiKeyAuthFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<PublicRateLimitFilter> disablePublicRateLimitFilterAutoRegistration() {
+        final FilterRegistrationBean<PublicRateLimitFilter> registration =
+                new FilterRegistrationBean<>(publicRateLimitFilter);
         registration.setEnabled(false);
         return registration;
     }

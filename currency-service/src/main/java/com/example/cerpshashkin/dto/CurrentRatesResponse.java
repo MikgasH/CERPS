@@ -1,11 +1,13 @@
 package com.example.cerpshashkin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 
 public record CurrentRatesResponse(
-        String baseCurrency,
+        @JsonProperty("base") String baseCurrency,
         Instant timestamp,
         Map<String, BigDecimal> rates,
         int totalCurrencies

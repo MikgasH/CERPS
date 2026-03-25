@@ -43,6 +43,7 @@ public class AdminService {
         log.info("Currency {} added", normalized);
     }
 
+    @CacheEvict(value = "currentRates", allEntries = true)
     public void refreshExchangeRates() {
         log.info("AUDIT: Manual rate refresh initiated. operation=RATE_REFRESH, timestamp={}", Instant.now());
         try {

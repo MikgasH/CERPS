@@ -34,6 +34,7 @@ public class CurrencyService {
         return conversionService.convertCurrency(request);
     }
 
+    @Cacheable(value = "currentRates", key = "#base.toUpperCase()")
     public CurrentRatesResponse getCurrentRatesForBase(final String base) {
         return exchangeRateService.getAllRatesForBase(base);
     }

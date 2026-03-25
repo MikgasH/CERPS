@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.scheduling.annotation.Scheduled;
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @Slf4j
@@ -32,6 +34,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin";
     private static final int MAX_REQUESTS_PER_MINUTE = 10;
     private static final long WINDOW_MILLIS = 60_000L;
+    private static final long STALE_ENTRY_MILLIS = 120_000L;
 
     private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();
 
@@ -135,6 +138,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         response.setContentType("application/json");
         response.getWriter().write(
                 "{\"error\": \"Too many requests\", \"message\": \"Rate limit exceeded. Maximum 10 requests per minute.\"}"
+        );
+    }
+
+    @Scheduled(fixedRate = 60_000)
+    public void cleanupStaleEntries() {
+        final long now = System.currentTimeMillis();
+        rateLimitMap.entrySet().removeIf(
+                entry -> now - entry.getValue().windowStart > STALE_ENTRY_MILLIS
         );
     }
 
