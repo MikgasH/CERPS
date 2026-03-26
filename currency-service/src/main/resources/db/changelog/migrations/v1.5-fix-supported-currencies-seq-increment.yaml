@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: fix-supported-currencies-seq-increment
+      author: hashkin
+      comment: >
+        Align DB sequence increment with JPA @SequenceGenerator(allocationSize = 50).
+        Hibernate pre-allocates IDs in batches of 50; the DB sequence must match.
+      changes:
+        - sql:
+            sql: ALTER SEQUENCE supported_currencies_seq INCREMENT BY 50
+      rollback:
+        - sql:
+            sql: ALTER SEQUENCE supported_currencies_seq INCREMENT BY 1
