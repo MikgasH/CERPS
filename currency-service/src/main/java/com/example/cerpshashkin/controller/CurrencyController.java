@@ -2,17 +2,21 @@ package com.example.cerpshashkin.controller;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
+import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerpshashkin.dto.CurrentRatesResponse;
 import com.example.cerpshashkin.service.CurrencyService;
+import com.example.cerpshashkin.service.RateHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -24,6 +28,7 @@ import java.util.List;
 public class CurrencyController {
 
     private final CurrencyService currencyService;
+    private final RateHistoryService rateHistoryService;
 
     @GetMapping("/currencies")
     @Operation(summary = "Get list of supported currencies")
@@ -47,5 +52,16 @@ public class CurrencyController {
             @RequestParam(required = false, defaultValue = "EUR") final String base) {
         log.info("GET /api/v1/rates/current?base={}", base);
         return ResponseEntity.ok(currencyService.getCurrentRatesForBase(base));
+    }
+
+    @GetMapping("/rates/history")
+    @Operation(summary = "Get exchange rate history for a currency pair")
+    public ResponseEntity<RateHistoryResponse> getRateHistory(
+            @RequestParam final String from,
+            @RequestParam final String to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final Instant startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final Instant endDate) {
+        log.info("GET /api/v1/rates/history from={} to={} startDate={} endDate={}", from, to, startDate, endDate);
+        return ResponseEntity.ok(rateHistoryService.getRateHistory(from, to, startDate, endDate));
     }
 }

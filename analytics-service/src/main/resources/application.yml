@@ -5,27 +5,8 @@ spring:
   application:
     name: analytics-service
 
-  datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-        default_schema: public
-    open-in-view: false
+currency-service:
+  url: ${CURRENCY_SERVICE_URL:http://localhost:8080}
 
 management:
   endpoints:
@@ -49,8 +30,6 @@ management:
       executor: false
       spring.security: false
       disk: false
-      hikaricp: true
-      jdbc: false
     tags:
       application: ${spring.application.name}
 

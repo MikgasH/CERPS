@@ -8,7 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_CURRENCY_DB:-currency_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_ANALYTICS_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
     ports:
       - "5434:5432"
     volumes:
@@ -62,12 +61,9 @@ services:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-currency:5432/${POSTGRES_CURRENCY_DB:-currency_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_ANALYTICS_USER:-analytics_readonly}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD:-analytics_readonly_pass}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      CURRENCY_SERVICE_URL: http://currency-service:8080
     depends_on:
-      postgres-currency:
+      currency-service:
         condition: service_healthy
     networks:
       - cerps-network

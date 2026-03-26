@@ -1,12 +1,13 @@
 package org.example.analyticsservice.unit.service;
 
 import com.example.cerps.common.CerpsConstants;
+import com.example.cerps.common.dto.RateHistoryResponse;
+import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.InsufficientDataException;
-import org.example.analyticsservice.repository.ExchangeRateRepository;
-import org.example.analyticsservice.repository.SupportedCurrencyRepository;
 import org.example.analyticsservice.service.TrendsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,34 +21,32 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TrendsServiceDownsampleTest {
 
     @Mock
-    private ExchangeRateRepository repository;
-
-    @Mock
-    private SupportedCurrencyRepository supportedCurrencyRepository;
+    private CurrencyServiceClient currencyServiceClient;
 
     private TrendsService service;
     private final Instant now = Instant.now();
 
     @BeforeEach
     void setUp() {
-        service = new TrendsService(repository, supportedCurrencyRepository, new SimpleMeterRegistry());
+        service = new TrendsService(currencyServiceClient, new SimpleMeterRegistry());
         service.initMetrics();
     }
 
     private void stubSupportedCurrencies() {
-        when(supportedCurrencyRepository.existsByCurrencyCode(any())).thenReturn(true);
+        when(currencyServiceClient.getSupportedCurrencies())
+                .thenReturn(List.of("USD", "EUR", "GBP", "JPY", "CHF", "CAD"));
     }
 
     // === Downsampling static method tests ===
@@ -169,11 +168,12 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithPeriod1D_ShouldQueryLastDay() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "1D");
-        List<Object[]> mockData = List.of(
-                createMockRow(now.minus(12, ChronoUnit.HOURS), "1.10"),
-                createMockRow(now, "1.12")
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(12, ChronoUnit.HOURS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.12"))
         );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -187,11 +187,12 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithPeriod7D_ShouldReturnCorrectPeriod() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
-        List<Object[]> mockData = List.of(
-                createMockRow(now.minus(7, ChronoUnit.DAYS), "1.10"),
-                createMockRow(now, "1.18")
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(7, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.18"))
         );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -203,11 +204,12 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithPeriod30D_ShouldReturnCorrectPeriod() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "30D");
-        List<Object[]> mockData = List.of(
-                createMockRow(now.minus(30, ChronoUnit.DAYS), "1.10"),
-                createMockRow(now, "1.12")
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(30, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.12"))
         );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -218,11 +220,12 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithPeriod90D_ShouldWork() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "90D");
-        List<Object[]> mockData = List.of(
-                createMockRow(now.minus(90, ChronoUnit.DAYS), "1.10"),
-                createMockRow(now, "1.15")
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(90, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.15"))
         );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -233,11 +236,12 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithPeriod180D_ShouldWork() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "180D");
-        List<Object[]> mockData = List.of(
-                createMockRow(now.minus(180, ChronoUnit.DAYS), "1.10"),
-                createMockRow(now, "1.20")
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(180, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.20"))
         );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -250,11 +254,9 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithSingleDataPoint_ShouldReturnZeroChange() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
-        // First query returns 1 point, second (all data) also returns 1 point
-        List<Object[]> mockData = List.<Object[]>of(
-                createMockRow(now, "1.18")
-        );
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        List<RatePoint> singlePoint = List.of(new RatePoint(now, new BigDecimal("1.18")));
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", singlePoint));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -267,7 +269,8 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithNoData_ShouldThrowInsufficientDataException() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(List.of());
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", List.of()));
 
         assertThatThrownBy(() -> service.calculateTrends(request))
                 .isInstanceOf(InsufficientDataException.class)
@@ -280,17 +283,18 @@ class TrendsServiceDownsampleTest {
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
 
         // First call (with date range) returns 1 point
-        List<Object[]> singlePoint = List.<Object[]>of(createMockRow(now, "1.18"));
-        // Second call (all data) returns 3 points
-        List<Object[]> allData = List.of(
-                createMockRow(now.minus(30, ChronoUnit.DAYS), "1.10"),
-                createMockRow(now.minus(15, ChronoUnit.DAYS), "1.14"),
-                createMockRow(now, "1.18")
+        List<RatePoint> singlePoint = List.of(new RatePoint(now, new BigDecimal("1.18")));
+        // Second call (all data, null dates) returns 3 points
+        List<RatePoint> allData = List.of(
+                new RatePoint(now.minus(30, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now.minus(15, ChronoUnit.DAYS), new BigDecimal("1.14")),
+                new RatePoint(now, new BigDecimal("1.18"))
         );
 
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any()))
-                .thenReturn(singlePoint)
-                .thenReturn(allData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(Instant.class), any(Instant.class)))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", singlePoint));
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), eq(null), eq(null)))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", allData));
 
         TrendsResponse response = service.calculateTrends(request);
 
@@ -305,29 +309,19 @@ class TrendsServiceDownsampleTest {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "1D");
         // Generate more than MAX_POINTS_1D (24) data points
-        List<Object[]> mockData = new ArrayList<>();
+        List<RatePoint> ratePoints = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
-            mockData.add(createMockRow(
+            ratePoints.add(new RatePoint(
                     now.minus(50 - i, ChronoUnit.HOURS),
-                    String.valueOf(1.10 + i * 0.001)
+                    new BigDecimal(String.valueOf(1.10 + i * 0.001))
             ));
         }
-        when(repository.findRatesWithCrossSupport(any(), any(), any(), any())).thenReturn(mockData);
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", ratePoints));
 
         TrendsResponse response = service.calculateTrends(request);
 
         assertThat(response.points()).hasSizeLessThanOrEqualTo(CerpsConstants.MAX_POINTS_1D);
         assertThat(response.dataPoints()).isEqualTo(50);
-    }
-
-    private Object[] createMockRow(Instant timestamp, String rate) {
-        return new Object[]{
-                UUID.randomUUID(),
-                "USD",
-                "EUR",
-                new BigDecimal(rate),
-                "TEST",
-                timestamp
-        };
     }
 }

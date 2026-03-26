@@ -1,6 +1,7 @@
 package org.example.analyticsservice.service;
 
 import com.example.cerps.common.CerpsConstants;
+import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
@@ -10,14 +11,10 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.analyticsservice.entity.ExchangeRateEntity;
-import org.example.analyticsservice.entity.SupportedCurrencyEntity;
+import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.InsufficientDataException;
-import org.example.analyticsservice.repository.ExchangeRateRepository;
-import org.example.analyticsservice.repository.SupportedCurrencyRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,16 +25,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class TrendsService {
 
-    private final ExchangeRateRepository exchangeRateRepository;
-    private final SupportedCurrencyRepository supportedCurrencyRepository;
+    private final CurrencyServiceClient currencyServiceClient;
     private final MeterRegistry meterRegistry;
 
     private Counter trendsSuccessCounter;
@@ -74,14 +68,13 @@ public class TrendsService {
                         .minusMillis(1);
                 final Instant startDate = calculateStartDate(endDate, request.period());
 
-                List<ExchangeRateEntity> rates = convertToEntityList(
-                        exchangeRateRepository.findRatesWithCrossSupport(fromCode, toCode, startDate, endDate)
-                );
+                RateHistoryResponse history = currencyServiceClient
+                        .getRateHistory(fromCode, toCode, startDate, endDate);
+                List<RatePoint> rates = history.points();
 
                 if (rates.size() < 2) {
-                    rates = convertToEntityList(
-                            exchangeRateRepository.findRatesWithCrossSupport(fromCode, toCode, null, null)
-                    );
+                    history = currencyServiceClient.getRateHistory(fromCode, toCode, null, null);
+                    rates = history.points();
                     log.info("Using all available data - {} points", rates.size());
                 }
 
@@ -92,35 +85,31 @@ public class TrendsService {
                 }
 
                 final int maxPoints = getMaxPointsForPeriod(request.period());
-                final List<ExchangeRateEntity> sampled = downsample(rates, maxPoints);
-
-                final List<RatePoint> points = sampled.stream()
-                        .map(r -> new RatePoint(r.getTimestamp(), r.getRate()))
-                        .toList();
+                final List<RatePoint> sampled = downsample(rates, maxPoints);
 
                 if (rates.size() == 1) {
-                    final ExchangeRateEntity singleRate = rates.getFirst();
+                    final RatePoint singleRate = rates.getFirst();
                     trendsSuccessCounter.increment();
                     return TrendsResponse.success(
                             fromCode,
                             toCode,
                             request.period().toUpperCase(),
-                            points,
-                            singleRate.getRate(),
-                            singleRate.getRate(),
+                            sampled,
+                            singleRate.rate(),
+                            singleRate.rate(),
                             BigDecimal.ZERO,
-                            singleRate.getTimestamp(),
-                            singleRate.getTimestamp(),
+                            singleRate.timestamp(),
+                            singleRate.timestamp(),
                             1
                     );
                 }
 
-                final ExchangeRateEntity oldestRate = rates.getFirst();
-                final ExchangeRateEntity newestRate = rates.getLast();
+                final RatePoint oldestRate = rates.getFirst();
+                final RatePoint newestRate = rates.getLast();
 
                 final BigDecimal changePercentage = calculatePercentageChange(
-                        oldestRate.getRate(),
-                        newestRate.getRate()
+                        oldestRate.rate(),
+                        newestRate.rate()
                 );
 
                 log.info("Trend calculated: {} -> {}, change: {}%", fromCode, toCode, changePercentage);
@@ -130,12 +119,12 @@ public class TrendsService {
                         fromCode,
                         toCode,
                         request.period().toUpperCase(),
-                        points,
-                        oldestRate.getRate(),
-                        newestRate.getRate(),
+                        sampled,
+                        oldestRate.rate(),
+                        newestRate.rate(),
                         changePercentage,
-                        oldestRate.getTimestamp(),
-                        newestRate.getTimestamp(),
+                        oldestRate.timestamp(),
+                        newestRate.timestamp(),
                         rates.size()
                 );
             } catch (Exception e) {
@@ -146,18 +135,10 @@ public class TrendsService {
     }
 
     private void validateSupportedCurrency(final String currencyCode) {
-        if (!supportedCurrencyRepository.existsByCurrencyCode(currencyCode)) {
-            final List<String> supportedCurrencies = getSupportedCurrencies();
+        final List<String> supportedCurrencies = currencyServiceClient.getSupportedCurrencies();
+        if (!supportedCurrencies.contains(currencyCode)) {
             throw new CurrencyNotSupportedException(currencyCode, supportedCurrencies);
         }
-    }
-
-    private List<String> getSupportedCurrencies() {
-        return supportedCurrencyRepository.findAll()
-                .stream()
-                .map(SupportedCurrencyEntity::getCurrencyCode)
-                .sorted()
-                .toList();
     }
 
     private Instant calculateStartDate(final Instant endDate, final String period) {
@@ -220,36 +201,5 @@ public class TrendsService {
 
         result.add(data.getLast());
         return result;
-    }
-
-    private List<ExchangeRateEntity> convertToEntityList(final List<Object[]> results) {
-        return results.stream()
-                .map(this::convertToEntity)
-                .toList();
-    }
-
-    private ExchangeRateEntity convertToEntity(final Object[] row) {
-        final UUID id = row[0] instanceof String
-                ? UUID.fromString((String) row[0])
-                : (UUID) row[0];
-
-        final Object timestampObj = row[5];
-        final Instant timestamp;
-        if (timestampObj instanceof java.sql.Timestamp) {
-            timestamp = ((java.sql.Timestamp) timestampObj).toInstant();
-        } else if (timestampObj instanceof java.time.OffsetDateTime) {
-            timestamp = ((java.time.OffsetDateTime) timestampObj).toInstant();
-        } else {
-            timestamp = (Instant) timestampObj;
-        }
-
-        return ExchangeRateEntity.builder()
-                .id(id)
-                .baseCurrency((String) row[1])
-                .targetCurrency((String) row[2])
-                .rate((BigDecimal) row[3])
-                .source((String) row[4])
-                .timestamp(timestamp)
-                .build();
     }
 }
