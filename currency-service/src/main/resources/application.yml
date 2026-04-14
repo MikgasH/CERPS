@@ -29,7 +29,7 @@ spring:
 
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    enabled: true
+    enabled: ${LIQUIBASE_ENABLED:true}
 
 api:
   fixer:
