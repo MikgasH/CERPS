@@ -1,6 +1,5 @@
 package org.example.analyticsservice.config;
 
-import com.example.cerps.common.converter.CurrencyAttributeConverter;
 import com.example.cerps.common.converter.ResponseConverter;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
@@ -41,8 +40,7 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     private void registerConverters(final RuntimeHints hints) {
         register(hints,
                 ResponseConverter.CurrencyDeserializer.class,
-                ResponseConverter.TimestampToInstantDeserializer.class,
-                CurrencyAttributeConverter.class);
+                ResponseConverter.TimestampToInstantDeserializer.class);
     }
 
     private void register(final RuntimeHints hints, final Class<?>... types) {
