@@ -20,7 +20,7 @@ COPY currency-service currency-service
 COPY analytics-service analytics-service
 
 # Build native image (currency-service pom.xml is needed by reactor)
-RUN mvn -Pnative native:compile -DskipTests -pl analytics-service -am
+RUN mvn -Pnative package -DskipTests -pl analytics-service -am
 
 # Stage 2: Minimal runtime image
 FROM gcr.io/distroless/base-debian12
