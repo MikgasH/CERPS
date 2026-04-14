@@ -23,11 +23,10 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
         registerJacksonDeserializers(hints);
         registerJpaHints(hints);
         registerResources(hints);
+        registerLiquibaseHints(hints);
     }
 
     private void registerExternalApiDtos(final RuntimeHints hints) {
-        // DTOs deserialized via RestClient.body() — not reachable through
-        // Spring MVC annotation scanning, so Spring AOT may miss them
         register(hints,
                 FixerioResponse.class,
                 ExchangeRatesApiResponse.class,
@@ -37,24 +36,40 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     }
 
     private void registerJacksonDeserializers(final RuntimeHints hints) {
-        // Custom deserializers referenced via @JsonDeserialize(using = ...)
         register(hints,
                 ResponseConverter.CurrencyDeserializer.class,
                 ResponseConverter.TimestampToInstantDeserializer.class);
     }
 
     private void registerJpaHints(final RuntimeHints hints) {
-        // Interface projection for Spring Data native query result
         register(hints, RateQueryResult.class);
-
-        // Auto-applied JPA converter from cerps-common module
         register(hints, CurrencyAttributeConverter.class);
     }
 
     private void registerResources(final RuntimeHints hints) {
-        // Liquibase migration changelogs
         hints.resources().registerPattern("db/changelog/*");
         hints.resources().registerPattern("db/changelog/migrations/*");
+    }
+
+    private void registerLiquibaseHints(final RuntimeHints hints) {
+        register(hints,
+                liquibase.ui.LoggerUIService.class,
+                liquibase.logging.core.DefaultLogService.class,
+                liquibase.logging.core.JavaLogService.class,
+                liquibase.integration.spring.SpringLiquibase.class,
+                liquibase.change.core.CreateTableChange.class,
+                liquibase.change.core.CreateIndexChange.class,
+                liquibase.change.core.CreateSequenceChange.class,
+                liquibase.change.core.InsertDataChange.class,
+                liquibase.change.core.DeleteDataChange.class,
+                liquibase.change.core.DropTableChange.class,
+                liquibase.change.core.DropIndexChange.class,
+                liquibase.change.core.DropSequenceChange.class,
+                liquibase.change.core.RawSQLChange.class,
+                liquibase.database.core.PostgresDatabase.class,
+                liquibase.changelog.ChangeLogParameters.class,
+                liquibase.changelog.DatabaseChangeLog.class,
+                liquibase.changelog.ChangeSet.class);
     }
 
     private void register(final RuntimeHints hints, final Class<?>... types) {
