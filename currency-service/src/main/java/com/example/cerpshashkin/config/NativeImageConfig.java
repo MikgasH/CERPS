@@ -14,6 +14,7 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  * GraalVM Native Image reachability hints for types that Spring AOT
  * cannot auto-detect (deserialized via RestClient, cross-module converters,
  * interface projections, and classpath resources).
+ * Liquibase hints are covered by META-INF/native-image/reflect-config.json.
  */
 public class NativeImageConfig implements RuntimeHintsRegistrar {
 
@@ -23,7 +24,6 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
         registerJacksonDeserializers(hints);
         registerJpaHints(hints);
         registerResources(hints);
-        registerLiquibaseHints(hints);
     }
 
     private void registerExternalApiDtos(final RuntimeHints hints) {
@@ -49,26 +49,6 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     private void registerResources(final RuntimeHints hints) {
         hints.resources().registerPattern("db/changelog/*");
         hints.resources().registerPattern("db/changelog/migrations/*");
-    }
-
-    private void registerLiquibaseHints(final RuntimeHints hints) {
-        register(hints,
-                liquibase.ui.LoggerUIService.class,
-                liquibase.logging.core.JavaLogService.class,
-                liquibase.integration.spring.SpringLiquibase.class,
-                liquibase.change.core.CreateTableChange.class,
-                liquibase.change.core.CreateIndexChange.class,
-                liquibase.change.core.CreateSequenceChange.class,
-                liquibase.change.core.InsertDataChange.class,
-                liquibase.change.core.DeleteDataChange.class,
-                liquibase.change.core.DropTableChange.class,
-                liquibase.change.core.DropIndexChange.class,
-                liquibase.change.core.DropSequenceChange.class,
-                liquibase.change.core.RawSQLChange.class,
-                liquibase.database.core.PostgresDatabase.class,
-                liquibase.changelog.ChangeLogParameters.class,
-                liquibase.changelog.DatabaseChangeLog.class,
-                liquibase.changelog.ChangeSet.class);
     }
 
     private void register(final RuntimeHints hints, final Class<?>... types) {
