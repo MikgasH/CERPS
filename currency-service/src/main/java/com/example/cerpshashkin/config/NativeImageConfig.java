@@ -2,6 +2,12 @@ package com.example.cerpshashkin.config;
 
 import com.example.cerps.common.converter.CurrencyAttributeConverter;
 import com.example.cerps.common.converter.ResponseConverter;
+import com.example.cerps.common.dto.ConversionRequest;
+import com.example.cerps.common.dto.ConversionResponse;
+import com.example.cerps.common.dto.RateHistoryResponse;
+import com.example.cerps.common.dto.RatePoint;
+import com.example.cerps.common.validation.CurrencyCodeValidator;
+import com.example.cerps.common.validation.PeriodValidator;
 import com.example.cerpshashkin.dto.CurrencyApiRawResponse;
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
@@ -11,18 +17,17 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
 /**
- * GraalVM Native Image reachability hints for types that Spring AOT
- * cannot auto-detect (deserialized via RestClient, cross-module converters,
- * interface projections, and classpath resources).
- * Liquibase hints are covered by META-INF/native-image/reflect-config.json.
+ * GraalVM Native Image reachability hints for currency-service.
  */
 public class NativeImageConfig implements RuntimeHintsRegistrar {
 
     @Override
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         registerExternalApiDtos(hints);
-        registerJacksonDeserializers(hints);
+        registerCommonDtos(hints);
+        registerValidators(hints);
         registerJpaHints(hints);
+        registerConverters(hints);
         registerResources(hints);
     }
 
@@ -35,18 +40,33 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
                 CurrencyApiRawResponse.CurrencyData.class);
     }
 
-    private void registerJacksonDeserializers(final RuntimeHints hints) {
+    private void registerCommonDtos(final RuntimeHints hints) {
         register(hints,
-                ResponseConverter.CurrencyDeserializer.class,
-                ResponseConverter.TimestampToInstantDeserializer.class);
+                ConversionRequest.class,
+                ConversionResponse.class,
+                RateHistoryResponse.class,
+                RatePoint.class);
+    }
+
+    private void registerValidators(final RuntimeHints hints) {
+        register(hints,
+                CurrencyCodeValidator.class,
+                PeriodValidator.class);
     }
 
     private void registerJpaHints(final RuntimeHints hints) {
-        register(hints, RateQueryResult.class);
-        register(hints, CurrencyAttributeConverter.class);
+        register(hints,
+                RateQueryResult.class,
+                CurrencyAttributeConverter.class);
         hints.reflection().registerType(
                 java.util.UUID[].class,
                 MemberCategory.UNSAFE_ALLOCATED);
+    }
+
+    private void registerConverters(final RuntimeHints hints) {
+        register(hints,
+                ResponseConverter.CurrencyDeserializer.class,
+                ResponseConverter.TimestampToInstantDeserializer.class);
     }
 
     private void registerResources(final RuntimeHints hints) {
