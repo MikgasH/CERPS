@@ -220,6 +220,7 @@
                             <buildArgs>
                                 <buildArg>--no-fallback</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>--initialize-at-run-time=liquibase</buildArg>
                             </buildArgs>
                         </configuration>
                         <executions>
