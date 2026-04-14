@@ -44,6 +44,9 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     private void registerJpaHints(final RuntimeHints hints) {
         register(hints, RateQueryResult.class);
         register(hints, CurrencyAttributeConverter.class);
+        hints.reflection().registerType(
+                java.util.UUID[].class,
+                MemberCategory.UNSAFE_ALLOCATED);
     }
 
     private void registerResources(final RuntimeHints hints) {
