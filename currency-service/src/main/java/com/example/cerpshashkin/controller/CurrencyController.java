@@ -50,8 +50,9 @@ public class CurrencyController {
     @Operation(summary = "Get current exchange rates for base currency")
     public ResponseEntity<CurrentRatesResponse> getCurrentRates(
             @RequestParam(required = false, defaultValue = "EUR") final String base) {
-        log.info("GET /api/v1/rates/current?base={}", base);
-        return ResponseEntity.ok(currencyService.getCurrentRatesForBase(base));
+        final String normalizedBase = base.trim().toUpperCase();
+        log.info("GET /api/v1/rates/current?base={}", normalizedBase);
+        return ResponseEntity.ok(currencyService.getCurrentRatesForBase(normalizedBase));
     }
 
     @GetMapping("/rates/history")
