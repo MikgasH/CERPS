@@ -3,19 +3,11 @@ package com.example.cerps.common.validation;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-import java.util.regex.Pattern;
+import java.util.Set;
 
 public class PeriodValidator implements ConstraintValidator<ValidPeriod, String> {
 
-    private static final Pattern PERIOD_PATTERN = Pattern.compile("^\\d{1,9}[HDMY]$");
-
-    private static final int MIN_HOURS = 12;
-    private static final int MAX_HOURS = 8760;
-    private static final int MIN_DAYS = 1;
-    private static final int MAX_DAYS = 365;
-    private static final int MIN_MONTHS = 1;
-    private static final int MAX_MONTHS = 12;
-    private static final int MAX_YEARS = 1;
+    private static final Set<String> ALLOWED_PERIODS = Set.of("1D", "7D", "30D", "90D", "180D", "1Y");
 
     @Override
     public boolean isValid(final String value, final ConstraintValidatorContext context) {
@@ -23,28 +15,7 @@ public class PeriodValidator implements ConstraintValidator<ValidPeriod, String>
             return false;
         }
 
-        final String trimmed = value.trim().toUpperCase();
-
-        if (!PERIOD_PATTERN.matcher(trimmed).matches()) {
-            return false;
-        }
-
-        try {
-            final int amount = Integer.parseInt(trimmed.substring(0, trimmed.length() - 1));
-
-            if (amount <= 0) {
-                return false;
-            }
-
-            return switch (trimmed.charAt(trimmed.length() - 1)) {
-                case 'H' -> amount >= MIN_HOURS && amount <= MAX_HOURS;
-                case 'D' -> amount >= MIN_DAYS && amount <= MAX_DAYS;
-                case 'M' -> amount >= MIN_MONTHS && amount <= MAX_MONTHS;
-                case 'Y' -> amount == MAX_YEARS;
-                default -> false;
-            };
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        final String normalized = value.trim().toUpperCase();
+        return ALLOWED_PERIODS.contains(normalized);
     }
 }

@@ -22,9 +22,17 @@ public class AnalyticsService {
 
         return trendsCache.get(from, to, period)
                 .orElseGet(() -> {
-                    final TrendsResponse response = trendsService.calculateTrends(request);
-                    trendsCache.put(from, to, period, response);
-                    return response;
+                    final TrendsService.TrendsResult result = trendsService.calculateTrends(request);
+                    if (result.fromFallback()) {
+                        trendsCache.putShort(from, to, period, result.response());
+                    } else {
+                        trendsCache.put(from, to, period, result.response());
+                    }
+                    return result.response();
                 });
+    }
+
+    public void invalidateCache() {
+        trendsCache.invalidateAll();
     }
 }

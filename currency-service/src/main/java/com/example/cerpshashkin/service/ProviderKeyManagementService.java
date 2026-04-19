@@ -10,6 +10,8 @@ import com.example.cerpshashkin.mapper.ProviderKeyMapper;
 import com.example.cerpshashkin.repository.ApiProviderKeyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -23,12 +25,14 @@ import java.util.List;
 @Slf4j
 public class ProviderKeyManagementService {
 
+    private static final String DECRYPTED_API_KEYS_CACHE = "decryptedApiKeys";
+
     private final ApiProviderKeyRepository repository;
     private final EncryptionService encryptionService;
     private final ProviderKeyMapper mapper;
+    private final CacheManager cacheManager;
 
     @Transactional
-    @CacheEvict(value = "decryptedApiKeys", key = "#request.providerName()")
     public ProviderKeyResponse createProviderKey(final CreateProviderKeyRequest request) {
         log.info("Creating provider key for provider: {}", request.providerName());
 
@@ -45,6 +49,8 @@ public class ProviderKeyManagementService {
 
         ApiProviderKeyEntity saved = repository.save(entity);
         log.info("Provider key created successfully with id: {}", saved.getId());
+
+        evictDecryptedKeyCache(saved.getProviderName());
 
         return mapper.toResponse(saved);
     }
@@ -70,7 +76,6 @@ public class ProviderKeyManagementService {
     }
 
     @Transactional
-    @CacheEvict(value = "decryptedApiKeys", key = "#result.providerName()")
     public ProviderKeyResponse updateProviderKey(final Long id, final UpdateProviderKeyRequest request) {
         log.info("Updating provider key with id: {}", id);
 
@@ -83,6 +88,8 @@ public class ProviderKeyManagementService {
 
         ApiProviderKeyEntity updated = repository.save(entity);
         log.info("Provider key updated successfully with id: {}", updated.getId());
+
+        evictDecryptedKeyCache(updated.getProviderName());
 
         return mapper.toResponse(updated);
     }
@@ -98,12 +105,12 @@ public class ProviderKeyManagementService {
         entity.setUpdatedAt(Instant.now());
         repository.save(entity);
 
-        evictCacheForProvider(entity.getProviderName());
+        evictDecryptedKeyCache(entity.getProviderName());
         log.info("Provider key deactivated successfully with id: {}", id);
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "decryptedApiKeys", key = "#providerName")
+    @Cacheable(value = DECRYPTED_API_KEYS_CACHE, key = "#providerName")
     public String getDecryptedApiKey(final String providerName) {
         log.debug("Retrieving and decrypting API key for provider: {}", providerName);
 
@@ -116,8 +123,18 @@ public class ProviderKeyManagementService {
         return decryptedKey;
     }
 
-    @CacheEvict(value = "decryptedApiKeys", key = "#providerName")
+    @CacheEvict(value = DECRYPTED_API_KEYS_CACHE, key = "#providerName")
     public void evictCacheForProvider(final String providerName) {
         log.debug("Evicting cache for provider: {}", providerName);
+        evictDecryptedKeyCache(providerName);
+    }
+
+    // Direct CacheManager eviction — annotation-based @CacheEvict does not fire on self-invocation
+    // and SpEL method calls (#result.providerName()) break under GraalVM Native Image.
+    private void evictDecryptedKeyCache(final String providerName) {
+        Cache cache = cacheManager.getCache(DECRYPTED_API_KEYS_CACHE);
+        if (cache != null) {
+            cache.evict(providerName);
+        }
     }
 }

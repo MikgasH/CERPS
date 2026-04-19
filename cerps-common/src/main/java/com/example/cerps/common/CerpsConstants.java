@@ -35,4 +35,5 @@ public final class CerpsConstants {
     public static final int MAX_POINTS_30D = 90;
     public static final int MAX_POINTS_90D = 180;
     public static final int MAX_POINTS_180D = 270;
+    public static final int MAX_POINTS_1Y = 365;
 }

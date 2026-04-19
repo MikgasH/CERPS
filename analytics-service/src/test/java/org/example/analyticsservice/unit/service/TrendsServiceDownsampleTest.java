@@ -4,7 +4,6 @@ import com.example.cerps.common.CerpsConstants;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
-import com.example.cerps.common.dto.TrendsResponse;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.InsufficientDataException;
@@ -108,7 +107,6 @@ class TrendsServiceDownsampleTest {
         assertThat(result).hasSize(5);
         assertThat(result.getFirst()).isEqualTo(0);
         assertThat(result.getLast()).isEqualTo(999);
-        // Inner points should be spaced evenly
         for (int i = 1; i < result.size(); i++) {
             assertThat(result.get(i)).isGreaterThan(result.get(i - 1));
         }
@@ -153,8 +151,13 @@ class TrendsServiceDownsampleTest {
     }
 
     @Test
+    void getMaxPointsForPeriod_1Y_ShouldReturn365() {
+        assertThat(invokeGetMaxPointsForPeriod("1Y")).isEqualTo(CerpsConstants.MAX_POINTS_1Y);
+    }
+
+    @Test
     void getMaxPointsForPeriod_UnknownPeriod_ShouldReturnDefault() {
-        assertThat(invokeGetMaxPointsForPeriod("1Y")).isEqualTo(CerpsConstants.MAX_POINTS_180D);
+        assertThat(invokeGetMaxPointsForPeriod("ABC")).isEqualTo(CerpsConstants.MAX_POINTS_180D);
     }
 
     @Test
@@ -175,12 +178,13 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response).isNotNull();
-        assertThat(response.from()).isEqualTo("USD");
-        assertThat(response.to()).isEqualTo("EUR");
-        assertThat(response.period()).isEqualTo("1D");
+        assertThat(result.response()).isNotNull();
+        assertThat(result.response().from()).isEqualTo("USD");
+        assertThat(result.response().to()).isEqualTo("EUR");
+        assertThat(result.response().period()).isEqualTo("1D");
+        assertThat(result.fromFallback()).isFalse();
     }
 
     @Test
@@ -194,10 +198,10 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.period()).isEqualTo("7D");
-        assertThat(response.dataPoints()).isEqualTo(2);
+        assertThat(result.response().period()).isEqualTo("7D");
+        assertThat(result.response().dataPoints()).isEqualTo(2);
     }
 
     @Test
@@ -211,9 +215,9 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.period()).isEqualTo("30D");
+        assertThat(result.response().period()).isEqualTo("30D");
     }
 
     @Test
@@ -227,9 +231,9 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.period()).isEqualTo("90D");
+        assertThat(result.response().period()).isEqualTo("90D");
     }
 
     @Test
@@ -243,26 +247,24 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.period()).isEqualTo("180D");
+        assertThat(result.response().period()).isEqualTo("180D");
     }
 
     // === Fallback behavior with fewer than 2 data points ===
 
     @Test
-    void calculateTrends_WithSingleDataPoint_ShouldReturnZeroChange() {
+    void calculateTrends_WithSinglePointAndNoWiderData_ShouldThrow() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
         List<RatePoint> singlePoint = List.of(new RatePoint(now, new BigDecimal("1.18")));
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", singlePoint));
 
-        TrendsResponse response = service.calculateTrends(request);
-
-        assertThat(response.changePercentage()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(response.oldRate()).isEqualByComparingTo(response.newRate());
-        assertThat(response.dataPoints()).isEqualTo(1);
+        assertThatThrownBy(() -> service.calculateTrends(request))
+                .isInstanceOf(InsufficientDataException.class)
+                .hasMessageContaining("Only one data point");
     }
 
     @Test
@@ -278,28 +280,27 @@ class TrendsServiceDownsampleTest {
     }
 
     @Test
-    void calculateTrends_WithFewerThan2Points_ShouldFallbackToAllData() {
+    void calculateTrends_WithFewerThan2Points_ShouldWidenWindow() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "7D");
 
-        // First call (with date range) returns 1 point
+        // First call returns 1 point, widened call returns 3 points.
         List<RatePoint> singlePoint = List.of(new RatePoint(now, new BigDecimal("1.18")));
-        // Second call (all data, null dates) returns 3 points
-        List<RatePoint> allData = List.of(
-                new RatePoint(now.minus(30, ChronoUnit.DAYS), new BigDecimal("1.10")),
-                new RatePoint(now.minus(15, ChronoUnit.DAYS), new BigDecimal("1.14")),
+        List<RatePoint> widenedData = List.of(
+                new RatePoint(now.minus(14, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now.minus(10, ChronoUnit.DAYS), new BigDecimal("1.14")),
                 new RatePoint(now, new BigDecimal("1.18"))
         );
 
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(Instant.class), any(Instant.class)))
-                .thenReturn(new RateHistoryResponse("USD", "EUR", singlePoint));
-        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), eq(null), eq(null)))
-                .thenReturn(new RateHistoryResponse("USD", "EUR", allData));
+                .thenReturn(new RateHistoryResponse("USD", "EUR", singlePoint))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", widenedData));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.dataPoints()).isEqualTo(3);
-        assertThat(response.changePercentage()).isNotEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.response().dataPoints()).isEqualTo(3);
+        assertThat(result.response().changePercentage()).isNotEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.fromFallback()).isTrue();
     }
 
     // === Downsampling integration with calculateTrends ===
@@ -308,7 +309,6 @@ class TrendsServiceDownsampleTest {
     void calculateTrends_WithMorePointsThanMax_ShouldDownsample() {
         stubSupportedCurrencies();
         TrendsRequest request = new TrendsRequest("USD", "EUR", "1D");
-        // Generate more than MAX_POINTS_1D (24) data points
         List<RatePoint> ratePoints = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
             ratePoints.add(new RatePoint(
@@ -319,9 +319,9 @@ class TrendsServiceDownsampleTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", ratePoints));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response.points()).hasSizeLessThanOrEqualTo(CerpsConstants.MAX_POINTS_1D);
-        assertThat(response.dataPoints()).isEqualTo(50);
+        assertThat(result.response().points()).hasSizeLessThanOrEqualTo(CerpsConstants.MAX_POINTS_1D);
+        assertThat(result.response().dataPoints()).isEqualTo(50);
     }
 }

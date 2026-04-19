@@ -1,5 +1,6 @@
 package org.example.analyticsservice.unit.exception;
 
+import com.example.cerps.common.exception.ExternalServiceException;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.GlobalExceptionHandler;
 import org.example.analyticsservice.exception.InsufficientDataException;
@@ -61,6 +62,21 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getTitle()).isEqualTo("Invalid Request");
         assertThat(result.getDetail()).isEqualTo("Invalid input");
         assertThat(result.getProperties()).containsKey("timestamp");
+    }
+
+    @Test
+    void handleExternalServiceException_ShouldReturn503() {
+        ExternalServiceException ex = new ExternalServiceException("currency-service timed out");
+
+        ProblemDetail result = handler.handleExternalServiceException(ex);
+
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+        assertThat(result.getTitle()).isEqualTo("Service Unavailable");
+        assertThat(result.getDetail()).contains("currency-service");
+        assertThat(result.getProperties()).containsKey("timestamp");
+        assertThat(result.getProperties()).containsKey("upstream");
+        assertThat(result.getProperties()).containsKey("diagnostic");
+        assertThat(result.getProperties().get("diagnostic")).isEqualTo("currency-service timed out");
     }
 
     @Test

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -30,6 +31,9 @@ import java.util.Optional;
 @Slf4j
 @RequiredArgsConstructor
 public class TrendsService {
+
+    static final int FALLBACK_WIDEN_FACTOR = 2;
+    static final Duration FALLBACK_MAX_WINDOW = Duration.ofDays(30);
 
     private final CurrencyServiceClient currencyServiceClient;
     private final MeterRegistry meterRegistry;
@@ -53,7 +57,7 @@ public class TrendsService {
                 .register(meterRegistry);
     }
 
-    public TrendsResponse calculateTrends(final TrendsRequest request) {
+    public TrendsResult calculateTrends(final TrendsRequest request) {
         return trendsCalculationTimer.record(() -> {
             try {
                 final String fromCode = request.from().toUpperCase();
@@ -71,11 +75,16 @@ public class TrendsService {
                 RateHistoryResponse history = currencyServiceClient
                         .getRateHistory(fromCode, toCode, startDate, endDate);
                 List<RatePoint> rates = history.points();
+                boolean widenedFallback = false;
 
                 if (rates.size() < 2) {
-                    history = currencyServiceClient.getRateHistory(fromCode, toCode, null, null);
-                    rates = history.points();
-                    log.info("Using all available data - {} points", rates.size());
+                    final List<RatePoint> widened = widenWindow(fromCode, toCode, startDate, endDate);
+                    if (widened.size() >= 2) {
+                        rates = widened;
+                        widenedFallback = true;
+                        log.info("Used widened fallback window for {} -> {} - {} points",
+                                fromCode, toCode, rates.size());
+                    }
                 }
 
                 if (rates.isEmpty()) {
@@ -84,25 +93,16 @@ public class TrendsService {
                     );
                 }
 
-                final int maxPoints = getMaxPointsForPeriod(request.period());
-                final List<RatePoint> sampled = downsample(rates, maxPoints);
-
                 if (rates.size() == 1) {
-                    final RatePoint singleRate = rates.getFirst();
-                    trendsSuccessCounter.increment();
-                    return TrendsResponse.success(
-                            fromCode,
-                            toCode,
-                            request.period().toUpperCase(),
-                            sampled,
-                            singleRate.rate(),
-                            singleRate.rate(),
-                            BigDecimal.ZERO,
-                            singleRate.timestamp(),
-                            singleRate.timestamp(),
-                            1
+                    throw new InsufficientDataException(
+                            String.format("Only one data point available for %s -> %s over period %s; "
+                                    + "need at least two to compute a trend",
+                                    fromCode, toCode, request.period().toUpperCase())
                     );
                 }
+
+                final int maxPoints = getMaxPointsForPeriod(request.period());
+                final List<RatePoint> sampled = downsample(rates, maxPoints);
 
                 final RatePoint oldestRate = rates.getFirst();
                 final RatePoint newestRate = rates.getLast();
@@ -115,7 +115,7 @@ public class TrendsService {
                 log.info("Trend calculated: {} -> {}, change: {}%", fromCode, toCode, changePercentage);
 
                 trendsSuccessCounter.increment();
-                return TrendsResponse.success(
+                final TrendsResponse response = TrendsResponse.success(
                         fromCode,
                         toCode,
                         request.period().toUpperCase(),
@@ -127,11 +127,28 @@ public class TrendsService {
                         newestRate.timestamp(),
                         rates.size()
                 );
+                return new TrendsResult(response, widenedFallback);
             } catch (Exception e) {
                 trendsFailureCounter.increment();
                 throw e;
             }
         });
+    }
+
+    private List<RatePoint> widenWindow(final String fromCode, final String toCode,
+                                        final Instant originalStart, final Instant endDate) {
+        final Duration originalSpan = Duration.between(originalStart, endDate);
+        Duration widened = originalSpan.multipliedBy(FALLBACK_WIDEN_FACTOR);
+        if (widened.isZero() || widened.isNegative()) {
+            widened = FALLBACK_MAX_WINDOW;
+        }
+        if (widened.compareTo(FALLBACK_MAX_WINDOW) > 0) {
+            widened = FALLBACK_MAX_WINDOW;
+        }
+        final Instant widenedStart = endDate.minus(widened);
+        final RateHistoryResponse response =
+                currencyServiceClient.getRateHistory(fromCode, toCode, widenedStart, endDate);
+        return response != null && response.points() != null ? response.points() : List.of();
     }
 
     private void validateSupportedCurrency(final String currencyCode) {
@@ -181,6 +198,7 @@ public class TrendsService {
             case "30D" -> CerpsConstants.MAX_POINTS_30D;
             case "90D" -> CerpsConstants.MAX_POINTS_90D;
             case "180D" -> CerpsConstants.MAX_POINTS_180D;
+            case "1Y" -> CerpsConstants.MAX_POINTS_1Y;
             default -> CerpsConstants.MAX_POINTS_180D;
         };
     }
@@ -201,5 +219,8 @@ public class TrendsService {
 
         result.add(data.getLast());
         return result;
+    }
+
+    public record TrendsResult(TrendsResponse response, boolean fromFallback) {
     }
 }

@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +42,9 @@ class ProviderKeyManagementServiceTest {
 
     @Mock
     private ProviderKeyMapper mapper;
+
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private ProviderKeyManagementService service;

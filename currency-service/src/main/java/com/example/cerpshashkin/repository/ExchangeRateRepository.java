@@ -143,6 +143,8 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             UNION ALL
 
             -- Cross rate: FROM -> TO via EUR (when both are not EUR)
+            -- Join on same-hour bucket to tolerate minor clock skew between write batches
+            -- while still pairing the closest snapshot per hour.
             SELECT
                 CAST(e1.id AS VARCHAR(36)) as id,
                 :fromCode as base_currency,
@@ -152,7 +154,7 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
                 e1.timestamp
             FROM exchange_rates e1
             INNER JOIN exchange_rates e2
-              ON e1.timestamp = e2.timestamp
+              ON date_trunc('hour', e1.timestamp) = date_trunc('hour', e2.timestamp)
               AND e1.base_currency = 'EUR'
               AND e2.base_currency = 'EUR'
             WHERE e1.target_currency = :fromCode

@@ -1,6 +1,7 @@
 package org.example.analyticsservice.exception;
 
 import com.example.cerps.common.CerpsConstants;
+import com.example.cerps.common.exception.ExternalServiceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,7 +30,8 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Insufficient Data");
         problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "insufficient-data"));
         problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("suggestion", "Try fetching exchange rates first using POST /api/v1/admin/refresh");
+        problemDetail.setProperty("suggestion",
+                "Try a wider date range or retry later once more rate history is available");
 
         return problemDetail;
     }
@@ -85,6 +87,24 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Invalid Request");
         problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "invalid-request"));
         problemDetail.setProperty("timestamp", Instant.now());
+
+        return problemDetail;
+    }
+
+    @ExceptionHandler(ExternalServiceException.class)
+    public ProblemDetail handleExternalServiceException(final ExternalServiceException ex) {
+        log.error("External service call failed: {}", ex.getMessage(), ex);
+
+        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Upstream currency-service is currently unavailable"
+        );
+        problemDetail.setTitle("Service Unavailable");
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "external-service-unavailable"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("upstream", "currency-service");
+        problemDetail.setProperty("diagnostic", ex.getMessage());
+        problemDetail.setProperty("suggestion", "Retry the request after a short delay");
 
         return problemDetail;
     }

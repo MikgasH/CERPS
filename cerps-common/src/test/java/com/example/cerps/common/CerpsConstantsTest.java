@@ -64,6 +64,7 @@ class CerpsConstantsTest {
         assertThat(CerpsConstants.MAX_POINTS_30D).isEqualTo(90);
         assertThat(CerpsConstants.MAX_POINTS_90D).isEqualTo(180);
         assertThat(CerpsConstants.MAX_POINTS_180D).isEqualTo(270);
+        assertThat(CerpsConstants.MAX_POINTS_1Y).isEqualTo(365);
     }
 
     @Test
@@ -76,5 +77,7 @@ class CerpsConstantsTest {
                 .isLessThan(CerpsConstants.MAX_POINTS_90D);
         assertThat(CerpsConstants.MAX_POINTS_90D)
                 .isLessThan(CerpsConstants.MAX_POINTS_180D);
+        assertThat(CerpsConstants.MAX_POINTS_180D)
+                .isLessThan(CerpsConstants.MAX_POINTS_1Y);
     }
 }

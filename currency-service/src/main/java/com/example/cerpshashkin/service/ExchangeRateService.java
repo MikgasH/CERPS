@@ -57,6 +57,12 @@ public class ExchangeRateService {
         final List<ExchangeRateEntity> latestRates = exchangeRateRepository
                 .findAllLatestByBaseCurrency(baseCurrencyCode, maxAge);
 
+        // Throw instead of returning empty: @Cacheable does not cache exceptions, so the next call retries the DB.
+        if (latestRates.isEmpty()) {
+            throw new ExchangeRateNotAvailableException(
+                    "No exchange rates available within the last " + maxAgeHours + " hours");
+        }
+
         final Map<String, BigDecimal> eurBasedRates = latestRates.stream()
                 .collect(Collectors.toMap(
                         e -> e.getTargetCurrency().getCurrencyCode(),

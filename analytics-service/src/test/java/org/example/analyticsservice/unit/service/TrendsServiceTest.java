@@ -3,7 +3,6 @@ package org.example.analyticsservice.unit.service;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
-import com.example.cerps.common.dto.TrendsResponse;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
@@ -54,12 +53,13 @@ class TrendsServiceTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response).isNotNull();
-        assertThat(response.from()).isEqualTo("USD");
-        assertThat(response.to()).isEqualTo("EUR");
-        assertThat(response.changePercentage()).isEqualByComparingTo("7.27");
+        assertThat(result.response()).isNotNull();
+        assertThat(result.response().from()).isEqualTo("USD");
+        assertThat(result.response().to()).isEqualTo("EUR");
+        assertThat(result.response().changePercentage()).isEqualByComparingTo("7.27");
+        assertThat(result.fromFallback()).isFalse();
     }
 
     @Test
@@ -83,10 +83,10 @@ class TrendsServiceTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response).isNotNull();
-        assertThat(response.changePercentage()).isEqualByComparingTo("25.00");
+        assertThat(result.response()).isNotNull();
+        assertThat(result.response().changePercentage()).isEqualByComparingTo("25.00");
     }
 
     @Test
@@ -99,10 +99,10 @@ class TrendsServiceTest {
         when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(new RateHistoryResponse("USD", "EUR", points));
 
-        TrendsResponse response = service.calculateTrends(request);
+        TrendsService.TrendsResult result = service.calculateTrends(request);
 
-        assertThat(response).isNotNull();
-        assertThat(response.changePercentage()).isEqualByComparingTo("-25.00");
+        assertThat(result.response()).isNotNull();
+        assertThat(result.response().changePercentage()).isEqualByComparingTo("-25.00");
     }
 
     @Test
