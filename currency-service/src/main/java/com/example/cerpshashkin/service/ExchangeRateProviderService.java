@@ -4,6 +4,7 @@ import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class ExchangeRateProviderService {
     private String baseCurrencyCode;
 
     private final List<ExchangeRateClient> clients;
+    private final MeterRegistry meterRegistry;
 
     public CurrencyExchangeResponse getLatestRatesFromProviders() {
         log.info("Collecting rates from providers");
@@ -56,25 +58,37 @@ public class ExchangeRateProviderService {
     }
 
     private Optional<CurrencyExchangeResponse> tryGetRatesFromClient(final ExchangeRateClient client) {
+        final String providerName = client.getProviderName();
         try {
-            log.info("Trying provider: {}", client.getProviderName());
+            log.info("Trying provider: {}", providerName);
 
             final CurrencyExchangeResponse response = client.getLatestRates();
 
-            return Optional.of(response)
-                    .filter(CurrencyExchangeResponse::success)
-                    .filter(r -> r.rates() != null && !r.rates().isEmpty())
-                    .map(r -> filterValidRates(r, client.getProviderName()))
-                    .filter(r -> !r.rates().isEmpty())
-                    .map(r -> {
-                        log.info("Provider {} succeeded", client.getProviderName());
-                        return r;
-                    });
+            if (!response.success() || response.rates() == null || response.rates().isEmpty()) {
+                incrementFailureCounter(providerName);
+                log.warn("Provider {} returned unsuccessful or empty response", providerName);
+                return Optional.empty();
+            }
+
+            final CurrencyExchangeResponse filtered = filterValidRates(response, providerName);
+            if (filtered.rates().isEmpty()) {
+                incrementFailureCounter(providerName);
+                log.warn("Provider {} returned no valid rates after filtering", providerName);
+                return Optional.empty();
+            }
+
+            log.info("Provider {} succeeded", providerName);
+            return Optional.of(filtered);
 
         } catch (Exception e) {
-            log.warn("Provider {} failed: {}", client.getProviderName(), e.getMessage());
+            incrementFailureCounter(providerName);
+            log.warn("Provider {} failed: {}", providerName, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private void incrementFailureCounter(final String providerName) {
+        meterRegistry.counter("currency.provider.failures", "provider", providerName).increment();
     }
 
     private CurrencyExchangeResponse filterValidRates(

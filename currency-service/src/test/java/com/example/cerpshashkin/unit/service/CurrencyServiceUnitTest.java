@@ -10,6 +10,7 @@ import com.example.cerpshashkin.service.CurrencyConversionService;
 import com.example.cerpshashkin.service.CurrencyService;
 import com.example.cerpshashkin.service.ExchangeRateService;
 import com.example.cerpshashkin.service.ProviderKeyManagementService;
+import com.example.cerpshashkin.service.SupportedCurrenciesService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,6 +41,9 @@ class CurrencyServiceUnitTest {
     private SupportedCurrencyRepository supportedCurrencyRepository;
 
     @Mock
+    private SupportedCurrenciesService supportedCurrenciesService;
+
+    @Mock
     private ProviderKeyManagementService providerKeyManagementService;
 
     @InjectMocks
@@ -50,30 +54,25 @@ class CurrencyServiceUnitTest {
 
     @Test
     void getSupportedCurrencies_ShouldReturnCurrenciesFromRepository() {
-        List<SupportedCurrencyEntity> entities = List.of(
-                createEntity(1L, "USD"),
-                createEntity(2L, "EUR"),
-                createEntity(3L, "GBP")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(entities);
+        when(supportedCurrenciesService.getSupportedCurrencyCodes())
+                .thenReturn(List.of("EUR", "GBP", "USD"));
 
         List<String> result = currencyService.getSupportedCurrencies();
 
         assertThat(result)
                 .containsExactly("EUR", "GBP", "USD")
                 .isSorted();
-        verify(supportedCurrencyRepository).findAll();
+        verify(supportedCurrenciesService).getSupportedCurrencyCodes();
     }
 
     @Test
     void getSupportedCurrencies_WithEmptyRepository_ShouldReturnEmptyList() {
-        when(supportedCurrencyRepository.findAll()).thenReturn(List.of());
+        when(supportedCurrenciesService.getSupportedCurrencyCodes()).thenReturn(List.of());
 
         List<String> result = currencyService.getSupportedCurrencies();
 
         assertThat(result).isEmpty();
-        verify(supportedCurrencyRepository).findAll();
+        verify(supportedCurrenciesService).getSupportedCurrencyCodes();
     }
 
     @Test
@@ -187,10 +186,4 @@ class CurrencyServiceUnitTest {
         verify(exchangeRateService, times(1)).refreshRates();
     }
 
-    private SupportedCurrencyEntity createEntity(Long id, String code) {
-        return SupportedCurrencyEntity.builder()
-                .id(id)
-                .currencyCode(code)
-                .build();
-    }
 }

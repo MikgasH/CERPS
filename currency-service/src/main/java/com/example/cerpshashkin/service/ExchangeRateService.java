@@ -3,25 +3,27 @@ package com.example.cerpshashkin.service;
 import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.dto.CurrentRatesResponse;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
-import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.model.CachedRate;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.repository.ExchangeRateRepository;
-import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.cache.CurrencyRateCache;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,7 +41,17 @@ public class ExchangeRateService {
     private final ExchangeRateProviderService providerService;
     private final CurrencyRateCache cache;
     private final ExchangeRateRepository exchangeRateRepository;
-    private final SupportedCurrencyRepository supportedCurrencyRepository;
+    private final SupportedCurrenciesService supportedCurrenciesService;
+    private final MeterRegistry meterRegistry;
+
+    private final AtomicInteger refreshFailureCount = new AtomicInteger(0);
+    private final AtomicInteger unsuccessfulResponseCount = new AtomicInteger(0);
+
+    @PostConstruct
+    public void initMetrics() {
+        meterRegistry.gauge("currency.rates.refresh.failures", refreshFailureCount);
+        meterRegistry.gauge("currency.rates.refresh.unsuccessful_responses", unsuccessfulResponseCount);
+    }
 
     public Optional<BigDecimal> getExchangeRate(final Currency from, final Currency to) {
         return getFromCache(from, to)
@@ -73,10 +85,7 @@ public class ExchangeRateService {
         latestRates.forEach(entity ->
                 cache.putRate(eurCurrency, entity.getTargetCurrency(), entity.getRate()));
 
-        final Set<String> supportedCodes = supportedCurrencyRepository.findAll()
-                .stream()
-                .map(SupportedCurrencyEntity::getCurrencyCode)
-                .collect(Collectors.toSet());
+        final Set<String> supportedCodes = supportedCurrenciesService.getSupportedCurrencyCodesAsSet();
 
         final Map<String, BigDecimal> rates;
 
@@ -120,6 +129,8 @@ public class ExchangeRateService {
             final CurrencyExchangeResponse response = providerService.getLatestRatesFromProviders();
 
             if (!response.success()) {
+                unsuccessfulResponseCount.incrementAndGet();
+                meterRegistry.counter("currency.rates.refresh.unsuccessful").increment();
                 log.warn("Provider returned unsuccessful response, keeping existing cache");
                 return;
             }
@@ -158,9 +169,15 @@ public class ExchangeRateService {
             log.info("Exchange rates refreshed - {} rates saved", entities.size());
 
         } catch (AllProvidersFailedException e) {
-            log.error("All providers failed, keeping existing cache and database data", e);
+            refreshFailureCount.incrementAndGet();
+            log.warn("All providers failed, keeping existing cache and database data: {}", e.getMessage());
+        } catch (RestClientException e) {
+            refreshFailureCount.incrementAndGet();
+            log.warn("Provider REST call failed, keeping existing data: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("Failed to refresh exchange rates, keeping existing data", e);
+            refreshFailureCount.incrementAndGet();
+            log.error("Unexpected error while refreshing exchange rates", e);
+            throw e;
         }
     }
 
@@ -252,9 +269,6 @@ public class ExchangeRateService {
     }
 
     private Set<String> getSupportedCurrencyCodes() {
-        return supportedCurrencyRepository.findAll()
-                .stream()
-                .map(SupportedCurrencyEntity::getCurrencyCode)
-                .collect(Collectors.toSet());
+        return supportedCurrenciesService.getSupportedCurrencyCodesAsSet();
     }
 }

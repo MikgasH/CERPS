@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: drop-redundant-idx-trends
+      author: hashkin
+      changes:
+        - dropIndex:
+            indexName: idx_trends
+            tableName: exchange_rates
+      rollback:
+        - createIndex:
+            indexName: idx_trends
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: base_currency
+              - column:
+                  name: target_currency
+              - column:
+                  name: timestamp

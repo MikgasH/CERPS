@@ -163,6 +163,8 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
               AND 'EUR' != :toCode
               AND (CAST(:startDate AS timestamp) IS NULL
                    OR e1.timestamp BETWEEN CAST(:startDate AS timestamp) AND CAST(:endDate AS timestamp))
+              AND (CAST(:startDate AS timestamp) IS NULL
+                   OR e2.timestamp BETWEEN CAST(:startDate AS timestamp) AND CAST(:endDate AS timestamp))
 
             ORDER BY timestamp ASC
             """;

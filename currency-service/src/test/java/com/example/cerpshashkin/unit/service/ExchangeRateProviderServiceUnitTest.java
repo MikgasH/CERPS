@@ -5,6 +5,7 @@ import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.service.ExchangeRateProviderService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +49,7 @@ class ExchangeRateProviderServiceUnitTest {
         when(currencyApiClient.getProviderName()).thenReturn(ApiProvider.CURRENCY_API.getDisplayName());
 
         List<ExchangeRateClient> clients = List.of(fixerClient, exchangeRatesClient, currencyApiClient);
-        providerService = new ExchangeRateProviderService(clients);
+        providerService = new ExchangeRateProviderService(clients, new SimpleMeterRegistry());
         ReflectionTestUtils.setField(providerService, "baseCurrencyCode", "EUR");
     }
 

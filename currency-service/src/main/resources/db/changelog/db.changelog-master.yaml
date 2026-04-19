@@ -11,3 +11,7 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.4-create-api-provider-keys-table.yaml
   - include:
       file: db/changelog/migrations/v1.5-fix-supported-currencies-seq-increment.yaml
+  - include:
+      file: db/changelog/migrations/v1.6-drop-redundant-idx-trends.yaml
+  - include:
+      file: db/changelog/migrations/v1.7-add-cross-rate-hour-index.yaml

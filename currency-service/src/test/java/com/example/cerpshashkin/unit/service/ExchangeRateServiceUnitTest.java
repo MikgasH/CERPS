@@ -1,22 +1,24 @@
 package com.example.cerpshashkin.unit.service;
 
-import com.example.cerps.common.CerpsConstants;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
-import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
+import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.model.CachedRate;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.repository.ExchangeRateRepository;
 import com.example.cerpshashkin.repository.RateQueryResult;
-import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.ExchangeRateProviderService;
 import com.example.cerpshashkin.service.ExchangeRateService;
+import com.example.cerpshashkin.service.SupportedCurrenciesService;
 import com.example.cerpshashkin.service.cache.CurrencyRateCache;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -28,12 +30,12 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -59,7 +61,10 @@ class ExchangeRateServiceUnitTest {
     private ExchangeRateRepository exchangeRateRepository;
 
     @Mock
-    private SupportedCurrencyRepository supportedCurrencyRepository;
+    private SupportedCurrenciesService supportedCurrenciesService;
+
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @InjectMocks
     private ExchangeRateService exchangeRateService;
@@ -67,6 +72,7 @@ class ExchangeRateServiceUnitTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(exchangeRateService, "baseCurrencyCode", "EUR");
+        exchangeRateService.initMetrics();
     }
 
     @Test
@@ -134,13 +140,8 @@ class ExchangeRateServiceUnitTest {
 
     @Test
     void refreshRates_WithRealData_ShouldClearCacheSaveToDbAndCache() {
-        List<SupportedCurrencyEntity> supported = List.of(
-                createSupportedCurrency("USD"),
-                createSupportedCurrency("GBP"),
-                createSupportedCurrency("JPY")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(supported);
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "GBP", "JPY"));
 
         CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
                 EUR, TEST_DATE,
@@ -185,12 +186,8 @@ class ExchangeRateServiceUnitTest {
 
     @Test
     void refreshRates_ShouldOnlySaveSupportedCurrencies() {
-        List<SupportedCurrencyEntity> supported = List.of(
-                createSupportedCurrency("USD"),
-                createSupportedCurrency("GBP")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(supported);
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "GBP"));
 
         CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
                 EUR, TEST_DATE,
@@ -218,12 +215,8 @@ class ExchangeRateServiceUnitTest {
 
     @Test
     void refreshRates_ShouldNotSaveBaseCurrency() {
-        List<SupportedCurrencyEntity> supported = List.of(
-                createSupportedCurrency("EUR"),
-                createSupportedCurrency("USD")
-        );
-
-        when(supportedCurrencyRepository.findAll()).thenReturn(supported);
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("EUR", "USD"));
 
         CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
                 EUR, TEST_DATE,
@@ -283,15 +276,24 @@ class ExchangeRateServiceUnitTest {
     }
 
     @Test
-    void refreshRates_WithException_ShouldNotPropagateException() {
+    void refreshRates_WithAllProvidersFailed_ShouldNotPropagateException() {
         when(providerService.getLatestRatesFromProviders())
-                .thenThrow(new RuntimeException("Service error"));
+                .thenThrow(new AllProvidersFailedException(List.of("Fixer.io", "ExchangeRatesAPI")));
 
-        // refreshRates() catches all exceptions now - should not throw
         exchangeRateService.refreshRates();
 
         verify(cache, never()).putRate(any(), any(), any());
         verify(exchangeRateRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void refreshRates_WithUnexpectedException_ShouldPropagate() {
+        when(providerService.getLatestRatesFromProviders())
+                .thenThrow(new RuntimeException("Service error"));
+
+        assertThatThrownBy(() -> exchangeRateService.refreshRates())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Service error");
     }
 
     @Test
@@ -345,10 +347,4 @@ class ExchangeRateServiceUnitTest {
         };
     }
 
-    private SupportedCurrencyEntity createSupportedCurrency(String code) {
-        return SupportedCurrencyEntity.builder()
-                .id((long) code.hashCode())
-                .currencyCode(code)
-                .build();
-    }
 }

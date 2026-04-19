@@ -32,20 +32,10 @@ public class CacheConfig {
         return manager;
     }
 
-    @Scheduled(fixedRate = 300_000) // 5 minutes
+    @Scheduled(fixedRate = 900_000) // 15 minutes
     public void evictSupportedCurrenciesCache() {
         if (cacheManager != null) {
             final var cache = cacheManager.getCache(SUPPORTED_CURRENCIES_CACHE);
-            if (cache != null) {
-                cache.clear();
-            }
-        }
-    }
-
-    @Scheduled(fixedRate = 28_800_000) // 8 hours
-    public void evictCurrentRatesCache() {
-        if (cacheManager != null) {
-            final var cache = cacheManager.getCache(CURRENT_RATES_CACHE);
             if (cache != null) {
                 cache.clear();
             }

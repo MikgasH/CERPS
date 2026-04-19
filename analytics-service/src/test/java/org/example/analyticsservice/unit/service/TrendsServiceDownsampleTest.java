@@ -152,7 +152,7 @@ class TrendsServiceDownsampleTest {
 
     @Test
     void getMaxPointsForPeriod_1Y_ShouldReturn365() {
-        assertThat(invokeGetMaxPointsForPeriod("1Y")).isEqualTo(CerpsConstants.MAX_POINTS_1Y);
+        assertThat(invokeGetMaxPointsForPeriod("1Y")).isEqualTo(365);
     }
 
     @Test

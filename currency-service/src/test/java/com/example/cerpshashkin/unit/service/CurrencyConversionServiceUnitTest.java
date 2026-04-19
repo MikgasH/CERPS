@@ -2,11 +2,10 @@ package com.example.cerpshashkin.unit.service;
 
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
-import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
-import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.example.cerpshashkin.service.CurrencyConversionService;
 import com.example.cerpshashkin.service.ExchangeRateService;
+import com.example.cerpshashkin.service.SupportedCurrenciesService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -38,7 +37,7 @@ class CurrencyConversionServiceUnitTest {
     private ExchangeRateService exchangeRateService;
 
     @Mock
-    private SupportedCurrencyRepository supportedCurrencyRepository;
+    private SupportedCurrenciesService supportedCurrenciesService;
 
     @Spy
     private MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -46,19 +45,14 @@ class CurrencyConversionServiceUnitTest {
     @InjectMocks
     private CurrencyConversionService conversionService;
 
-    private static final List<SupportedCurrencyEntity> DEFAULT_SUPPORTED = List.of(
-            SupportedCurrencyEntity.builder().currencyCode("EUR").build(),
-            SupportedCurrencyEntity.builder().currencyCode("USD").build(),
-            SupportedCurrencyEntity.builder().currencyCode("GBP").build(),
-            SupportedCurrencyEntity.builder().currencyCode("CHF").build(),
-            SupportedCurrencyEntity.builder().currencyCode("JPY").build()
+    private static final List<String> DEFAULT_SUPPORTED = List.of(
+            "CHF", "EUR", "GBP", "JPY", "USD"
     );
 
     @BeforeEach
     void setUp() {
         conversionService.initMetrics();
-        // Mock all currencies as supported by default
-        when(supportedCurrencyRepository.findAll()).thenReturn(DEFAULT_SUPPORTED);
+        when(supportedCurrenciesService.getSupportedCurrencyCodes()).thenReturn(DEFAULT_SUPPORTED);
     }
 
     @Test

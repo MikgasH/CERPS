@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-cross-rate-hour-index
+      author: hashkin
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >-
+              CREATE INDEX IF NOT EXISTS idx_exchange_rates_hour
+              ON exchange_rates (date_trunc('hour', timestamp), base_currency);
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: DROP INDEX IF EXISTS idx_exchange_rates_hour;

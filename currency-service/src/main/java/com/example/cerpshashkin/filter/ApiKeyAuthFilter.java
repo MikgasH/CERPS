@@ -55,7 +55,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String clientIp = getClientIp(request);
+        final String clientIp = request.getRemoteAddr();
 
         if (isRateLimited(clientIp)) {
             log.warn("AUDIT: Rate limit exceeded for admin endpoint. ip={}, path={}, timestamp={}",
@@ -114,14 +114,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         final RateLimitEntry entry = rateLimitMap.get(clientIp);
         return entry != null && entry.counter.get() > MAX_REQUESTS_PER_MINUTE;
-    }
-
-    private String getClientIp(final HttpServletRequest request) {
-        final String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 
     private void sendUnauthorized(final HttpServletResponse response, final String message) throws IOException {

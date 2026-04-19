@@ -2,6 +2,7 @@ package com.example.cerpshashkin.unit.service;
 
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.service.ExchangeRateProviderService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -21,7 +22,7 @@ class IsValidRateTest {
     void setUp() {
         ExchangeRateClient client = mock(ExchangeRateClient.class);
         when(client.getProviderName()).thenReturn("TestProvider");
-        providerService = new ExchangeRateProviderService(List.of(client));
+        providerService = new ExchangeRateProviderService(List.of(client), new SimpleMeterRegistry());
         ReflectionTestUtils.setField(providerService, "baseCurrencyCode", "EUR");
     }
 

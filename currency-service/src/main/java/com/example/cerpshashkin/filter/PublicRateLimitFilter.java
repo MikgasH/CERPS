@@ -48,7 +48,7 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String clientIp = getClientIp(request);
+        final String clientIp = request.getRemoteAddr();
         final String key = clientIp + ":" + path;
 
         if (isRateLimited(key, limit)) {
@@ -82,14 +82,6 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
 
         final RateLimitEntry entry = rateLimitMap.get(key);
         return entry != null && entry.counter.get() > maxRequests;
-    }
-
-    private String getClientIp(final HttpServletRequest request) {
-        final String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 
     private void sendTooManyRequests(final HttpServletResponse response, final int limit) throws IOException {

@@ -34,6 +34,7 @@ public class TrendsService {
 
     static final int FALLBACK_WIDEN_FACTOR = 2;
     static final Duration FALLBACK_MAX_WINDOW = Duration.ofDays(30);
+    private static final int MAX_POINTS_1Y = 365;
 
     private final CurrencyServiceClient currencyServiceClient;
     private final MeterRegistry meterRegistry;
@@ -198,7 +199,7 @@ public class TrendsService {
             case "30D" -> CerpsConstants.MAX_POINTS_30D;
             case "90D" -> CerpsConstants.MAX_POINTS_90D;
             case "180D" -> CerpsConstants.MAX_POINTS_180D;
-            case "1Y" -> CerpsConstants.MAX_POINTS_1Y;
+            case "1Y" -> MAX_POINTS_1Y;
             default -> CerpsConstants.MAX_POINTS_180D;
         };
     }

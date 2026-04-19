@@ -3,6 +3,7 @@ package com.example.cerpshashkin.unit.service;
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.service.ExchangeRateProviderService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -37,7 +38,7 @@ class ExchangeRateProviderServiceMedianTest {
         when(client3.getProviderName()).thenReturn("Provider3");
 
         List<ExchangeRateClient> clients = List.of(client1, client2, client3);
-        providerService = new ExchangeRateProviderService(clients);
+        providerService = new ExchangeRateProviderService(clients, new SimpleMeterRegistry());
         ReflectionTestUtils.setField(providerService, "baseCurrencyCode", "EUR");
     }
 

@@ -3,10 +3,8 @@ package com.example.cerpshashkin.service;
 import com.example.cerps.common.CerpsConstants;
 import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
-import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
-import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -29,7 +27,7 @@ public class CurrencyConversionService {
     private static final String LOG_CONVERSION_SUCCESS = "Conversion successful: {} {} = {} {} (rate: {})";
 
     private final ExchangeRateService exchangeRateService;
-    private final SupportedCurrencyRepository supportedCurrencyRepository;
+    private final SupportedCurrenciesService supportedCurrenciesService;
     private final MeterRegistry meterRegistry;
 
     private Counter successCounter;
@@ -59,12 +57,7 @@ public class CurrencyConversionService {
                 final String fromCode = request.from().toUpperCase();
                 final String toCode = request.to().toUpperCase();
 
-                // Single DB query: fetch all supported currencies, then validate both
-                final List<String> supportedCurrencies = supportedCurrencyRepository.findAll()
-                        .stream()
-                        .map(SupportedCurrencyEntity::getCurrencyCode)
-                        .sorted()
-                        .toList();
+                final List<String> supportedCurrencies = supportedCurrenciesService.getSupportedCurrencyCodes();
 
                 if (!supportedCurrencies.contains(fromCode)) {
                     throw new CurrencyNotSupportedException(fromCode, supportedCurrencies);

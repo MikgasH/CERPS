@@ -16,6 +16,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -131,7 +133,22 @@ public class ProviderKeyManagementService {
 
     // Direct CacheManager eviction — annotation-based @CacheEvict does not fire on self-invocation
     // and SpEL method calls (#result.providerName()) break under GraalVM Native Image.
+    // Eviction is deferred until after commit so concurrent readers don't repopulate stale values
+    // before the new row is visible.
     private void evictDecryptedKeyCache(final String providerName) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doEvict(providerName);
+                }
+            });
+        } else {
+            doEvict(providerName);
+        }
+    }
+
+    private void doEvict(final String providerName) {
         Cache cache = cacheManager.getCache(DECRYPTED_API_KEYS_CACHE);
         if (cache != null) {
             cache.evict(providerName);
