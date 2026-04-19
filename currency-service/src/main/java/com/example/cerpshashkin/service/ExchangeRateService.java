@@ -29,10 +29,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-    private static final int MAX_AGE_HOURS = 6;
-
     @Value("${exchange-rates.base-currency:EUR}")
     private String baseCurrencyCode;
+
+    // Must exceed the scheduler interval (8h) with headroom, otherwise reads return empty between refreshes.
+    @Value("${exchange-rates.max-age-hours:24}")
+    private int maxAgeHours;
 
     private final ExchangeRateProviderService providerService;
     private final CurrencyRateCache cache;
@@ -49,7 +51,7 @@ public class ExchangeRateService {
         final String normalized = baseCode.trim().toUpperCase();
         Currency.getInstance(normalized);
         final Currency eurCurrency = Currency.getInstance(baseCurrencyCode);
-        final Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
+        final Instant maxAge = Instant.now().minus(maxAgeHours, ChronoUnit.HOURS);
 
         // Single batch query: fetch all latest EUR-based rates in one DB roundtrip
         final List<ExchangeRateEntity> latestRates = exchangeRateRepository
@@ -184,7 +186,7 @@ public class ExchangeRateService {
     }
 
     private Optional<BigDecimal> getFromDatabase(final Currency from, final Currency to) {
-        final Instant maxAge = Instant.now().minus(MAX_AGE_HOURS, ChronoUnit.HOURS);
+        final Instant maxAge = Instant.now().minus(maxAgeHours, ChronoUnit.HOURS);
 
         return exchangeRateRepository.findBestRate(
                 from.getCurrencyCode(),

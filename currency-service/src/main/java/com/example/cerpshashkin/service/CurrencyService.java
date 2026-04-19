@@ -34,7 +34,7 @@ public class CurrencyService {
         return conversionService.convertCurrency(request);
     }
 
-    @Cacheable(value = "currentRates", key = "#base")
+    @Cacheable(value = "currentRates", key = "#base", unless = "#result.rates().isEmpty()")
     public CurrentRatesResponse getCurrentRatesForBase(final String base) {
         return exchangeRateService.getAllRatesForBase(base);
     }
