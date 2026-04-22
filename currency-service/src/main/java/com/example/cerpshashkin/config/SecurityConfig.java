@@ -26,7 +26,8 @@ public class SecurityConfig {
             "/webjars/**",
             "/actuator/**",
             "/api/v1/currencies/**",
-            "/api/v1/rates/**"
+            "/api/v1/rates/**",
+            "/api/v1/ai/**"
     };
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;

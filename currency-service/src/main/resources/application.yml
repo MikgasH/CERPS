@@ -57,6 +57,14 @@ exchange-rates:
 encryption:
   master-key: ${ENCRYPTION_MASTER_KEY}
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  base-url: https://generativelanguage.googleapis.com/
+  model: gemini-2.0-flash-lite
+  prompts:
+    system: "You are a financial data assistant. You specialize exclusively in bank fees and foreign currency transaction commissions. Refuse any questions not related to bank commission rates."
+    bank-commission: "For the bank named '{bankName}', what is the typical foreign currency transaction commission percentage? Return ONLY a single decimal number (e.g. 0.5 or 3.0). If unknown or unsure, return exactly: NOT_FOUND"
+
 management:
   endpoints:
     web:

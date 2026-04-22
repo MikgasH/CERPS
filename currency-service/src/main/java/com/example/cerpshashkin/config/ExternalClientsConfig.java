@@ -51,6 +51,16 @@ public class ExternalClientsConfig {
                 .build();
     }
 
+    @Bean("geminiRestClient")
+    public RestClient geminiRestClient(
+            @Value("${gemini.base-url}") final String geminiBaseUrl) {
+        return RestClient.builder()
+                .baseUrl(geminiBaseUrl)
+                .requestFactory(createRequestFactory())
+                .requestInterceptor(correlationIdInterceptor)
+                .build();
+    }
+
     private SimpleClientHttpRequestFactory createRequestFactory() {
         final SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(CONNECT_TIMEOUT);

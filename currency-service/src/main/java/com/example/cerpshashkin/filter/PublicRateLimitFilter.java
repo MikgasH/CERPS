@@ -28,7 +28,8 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
     private static final Map<String, Integer> ENDPOINT_LIMITS = Map.of(
             "/api/v1/currencies", 100,
             "/api/v1/rates/current", 60,
-            "/api/v1/currencies/convert", 60
+            "/api/v1/currencies/convert", 60,
+            "/api/v1/ai/bank-commission", 10
     );
 
     private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();

@@ -59,6 +59,12 @@ public class GlobalExceptionHandler {
         return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "All providers failed", ex.getMessage());
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ProblemDetail handleServiceUnavailableException(final ServiceUnavailableException ex) {
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Service unavailable", ex.getMessage());
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ProblemDetail handleConstraintViolationException(final ConstraintViolationException ex) {
