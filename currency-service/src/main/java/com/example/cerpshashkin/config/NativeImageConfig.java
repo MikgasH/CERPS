@@ -8,9 +8,12 @@ import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.validation.CurrencyCodeValidator;
 import com.example.cerps.common.validation.PeriodValidator;
+import com.example.cerpshashkin.dto.BankCommissionResponse;
 import com.example.cerpshashkin.dto.CurrencyApiRawResponse;
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
+import com.example.cerpshashkin.dto.GeminiRequest;
+import com.example.cerpshashkin.dto.GeminiResponse;
 import com.example.cerpshashkin.repository.RateQueryResult;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
@@ -25,6 +28,7 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         registerExternalApiDtos(hints);
         registerCommonDtos(hints);
+        registerGeminiDtos(hints);
         registerValidators(hints);
         registerJpaHints(hints);
         registerConverters(hints);
@@ -38,6 +42,19 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
                 CurrencyApiRawResponse.class,
                 CurrencyApiRawResponse.Meta.class,
                 CurrencyApiRawResponse.CurrencyData.class);
+    }
+
+    private void registerGeminiDtos(final RuntimeHints hints) {
+        register(hints,
+                GeminiRequest.class,
+                GeminiRequest.SystemInstruction.class,
+                GeminiRequest.Content.class,
+                GeminiRequest.Part.class,
+                GeminiResponse.class,
+                GeminiResponse.Candidate.class,
+                GeminiResponse.Content.class,
+                GeminiResponse.Part.class,
+                BankCommissionResponse.class);
     }
 
     private void registerCommonDtos(final RuntimeHints hints) {
