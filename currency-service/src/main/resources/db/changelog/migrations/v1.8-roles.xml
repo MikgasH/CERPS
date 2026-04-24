@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v1.8-create-roles" author="hashkin" runOnChange="false">
+        <comment>
+            Define three database roles for least-privilege access control.
+            app_read  — read-only access to rate data and supported currencies.
+            app_write — read/write access for the application service account.
+            app_admin — full privileges for administrative operations.
+        </comment>
+        <sql>
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_read') THEN
+                    CREATE ROLE app_read;
+                END IF;
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_write') THEN
+                    CREATE ROLE app_write;
+                END IF;
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_admin') THEN
+                    CREATE ROLE app_admin;
+                END IF;
+            END $$;
+
+            GRANT SELECT ON exchange_rates, supported_currencies TO app_read;
+
+            GRANT SELECT, INSERT, UPDATE
+                ON exchange_rates, supported_currencies, api_provider_keys
+                TO app_write;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_write;
+
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_admin;
+            GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_admin;
+        </sql>
+        <rollback>
+            DROP ROLE IF EXISTS app_read;
+            DROP ROLE IF EXISTS app_write;
+            DROP ROLE IF EXISTS app_admin;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.6-drop-redundant-idx-trends.yaml
   - include:
       file: db/changelog/migrations/v1.7-add-cross-rate-hour-index.yaml
+  - include:
+      file: db/changelog/migrations/v1.8-roles.xml
