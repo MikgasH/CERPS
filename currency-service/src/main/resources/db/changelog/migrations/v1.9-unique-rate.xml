@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v1.9-unique-exchange-rate" author="hashkin">
+        <comment>
+            Prevent duplicate rate rows when scheduler ticks overlap.
+            Note: applied manually on Railway; changeset serves as version-controlled
+            documentation of the constraint.
+        </comment>
+        <addUniqueConstraint
+            tableName="exchange_rates"
+            columnNames="base_currency, target_currency, timestamp"
+            constraintName="unique_rate"/>
+        <rollback>
+            <dropUniqueConstraint
+                tableName="exchange_rates"
+                constraintName="unique_rate"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

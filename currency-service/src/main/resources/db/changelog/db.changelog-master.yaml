@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.7-add-cross-rate-hour-index.yaml
   - include:
       file: db/changelog/migrations/v1.8-roles.xml
+  - include:
+      file: db/changelog/migrations/v1.9-unique-rate.xml
