@@ -1,6 +1,7 @@
 package com.example.cerpshashkin.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -106,8 +108,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ProblemDetail handleGenericException(final Exception ex) {
+        log.error("Unexpected error occurred", ex);
         return createProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error",
-                "An unexpected error occurred: " + ex.getMessage());
+                "An unexpected error occurred");
     }
 
     @ExceptionHandler(CurrencyNotSupportedException.class)
