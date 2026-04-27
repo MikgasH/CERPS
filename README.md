@@ -21,8 +21,6 @@ Java 21 · Spring Boot 3 · PostgreSQL 16 · Liquibase · Docker / Docker Compos
 
 | Resource                    | URL                                                                              |
 |-----------------------------|----------------------------------------------------------------------------------|
-| Currency Service            | https://supportive-vision-production.up.railway.app                              |
-| Analytics Service           | https://sparkling-curiosity-production-9ffd.up.railway.app                       |
 | Swagger UI (Currency)       | https://supportive-vision-production.up.railway.app/swagger-ui.html              |
 | Swagger UI (Analytics)      | https://sparkling-curiosity-production-9ffd.up.railway.app/swagger-ui.html       |
 
