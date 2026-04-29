@@ -44,6 +44,7 @@
         <spring-cloud.version>2024.0.1</spring-cloud.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <liquibase.version>4.27.0</liquibase.version>
+        <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
     </properties>
 
     <dependencyManagement>
@@ -139,6 +140,12 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
                 <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>${logstash-logback-encoder.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
