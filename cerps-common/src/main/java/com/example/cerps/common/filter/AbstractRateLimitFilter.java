@@ -1,14 +1,11 @@
-package com.example.cerpshashkin.filter;
+package com.example.cerps.common.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -17,44 +14,47 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 @Slf4j
-public class PublicRateLimitFilter extends OncePerRequestFilter {
+public abstract class AbstractRateLimitFilter extends OncePerRequestFilter {
 
     private static final long WINDOW_MILLIS = 60_000L;
     private static final long STALE_ENTRY_MILLIS = 120_000L;
-
-    private static final Map<String, Integer> ENDPOINT_LIMITS = Map.of(
-            "/api/v1/currencies", 100,
-            "/api/v1/rates/current", 60,
-            "/api/v1/currencies/convert", 60,
-            "/api/v1/ai/bank-commission", 10
-    );
+    private static final String FORWARDED_FOR_HEADER = "X-Forwarded-For";
 
     private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();
 
+    /**
+     * Returns the per-minute request limit for this request, or {@code null} if it should not be rate-limited.
+     */
+    protected abstract Integer resolveLimit(HttpServletRequest request);
+
+    /**
+     * Returns the bucket key used to group requests for limiting. Default: client IP only.
+     * Override to scope buckets more narrowly (e.g. per-endpoint).
+     */
+    protected String resolveBucketKey(final HttpServletRequest request, final String clientIp) {
+        return clientIp;
+    }
+
     @Override
-    protected void doFilterInternal(
+    protected final void doFilterInternal(
             final HttpServletRequest request,
             final HttpServletResponse response,
             final FilterChain filterChain
     ) throws ServletException, IOException {
 
-        final String path = request.getRequestURI();
-        final Integer limit = resolveLimit(path);
-
+        final Integer limit = resolveLimit(request);
         if (limit == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String clientIp = request.getRemoteAddr();
-        final String key = clientIp + ":" + path;
+        final String clientIp = extractClientIp(request);
+        final String key = resolveBucketKey(request, clientIp);
 
         if (isRateLimited(key, limit)) {
             log.warn("AUDIT: Public rate limit exceeded. ip={}, path={}, limit={}/min, timestamp={}",
-                    clientIp, path, limit, Instant.now());
+                    clientIp, request.getRequestURI(), limit, Instant.now());
             sendTooManyRequests(response, limit);
             return;
         }
@@ -62,13 +62,12 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private Integer resolveLimit(final String path) {
-        for (final Map.Entry<String, Integer> entry : ENDPOINT_LIMITS.entrySet()) {
-            if (path.equals(entry.getKey())) {
-                return entry.getValue();
-            }
+    protected String extractClientIp(final HttpServletRequest request) {
+        final String xForwardedFor = request.getHeader(FORWARDED_FOR_HEADER);
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
         }
-        return null;
+        return request.getRemoteAddr();
     }
 
     private boolean isRateLimited(final String key, final int maxRequests) {
@@ -102,11 +101,11 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
         );
     }
 
-    private static class RateLimitEntry {
-        final long windowStart;
-        final AtomicInteger counter;
+    private static final class RateLimitEntry {
+        private final long windowStart;
+        private final AtomicInteger counter;
 
-        RateLimitEntry(final long windowStart, final AtomicInteger counter) {
+        private RateLimitEntry(final long windowStart, final AtomicInteger counter) {
             this.windowStart = windowStart;
             this.counter = counter;
         }

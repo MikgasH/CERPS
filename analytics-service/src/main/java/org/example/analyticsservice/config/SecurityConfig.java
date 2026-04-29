@@ -1,7 +1,7 @@
 package org.example.analyticsservice.config;
 
 import lombok.RequiredArgsConstructor;
-import org.example.analyticsservice.filter.PublicRateLimitFilter;
+import org.example.analyticsservice.filter.TrendsEndpointRateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,7 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final PublicRateLimitFilter publicRateLimitFilter;
+    private final TrendsEndpointRateLimitFilter publicRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {

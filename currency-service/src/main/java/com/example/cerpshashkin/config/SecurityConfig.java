@@ -1,7 +1,7 @@
 package com.example.cerpshashkin.config;
 
 import com.example.cerpshashkin.filter.ApiKeyAuthFilter;
-import com.example.cerpshashkin.filter.PublicRateLimitFilter;
+import com.example.cerpshashkin.filter.PublicEndpointRateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -31,7 +31,7 @@ public class SecurityConfig {
     };
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
-    private final PublicRateLimitFilter publicRateLimitFilter;
+    private final PublicEndpointRateLimitFilter publicRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -62,8 +62,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<PublicRateLimitFilter> disablePublicRateLimitFilterAutoRegistration() {
-        final FilterRegistrationBean<PublicRateLimitFilter> registration =
+    public FilterRegistrationBean<PublicEndpointRateLimitFilter> disablePublicRateLimitFilterAutoRegistration() {
+        final FilterRegistrationBean<PublicEndpointRateLimitFilter> registration =
                 new FilterRegistrationBean<>(publicRateLimitFilter);
         registration.setEnabled(false);
         return registration;
