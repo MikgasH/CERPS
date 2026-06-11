@@ -37,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -326,6 +327,94 @@ class ExchangeRateServiceUnitTest {
         assertThat(result).contains(crossRate);
         verify(cache).putRate(USD, GBP, crossRate);
         verifyNoInteractions(providerService);
+    }
+
+    @Test
+    void refreshRates_WithMissingCurrencies_ShouldGapFillFromFallback() {
+        Currency byn = Currency.getInstance("BYN");
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "GBP", "BYN"));
+
+        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
+                EUR, TEST_DATE,
+                Map.of(USD, BigDecimal.valueOf(1.18), GBP, BigDecimal.valueOf(0.87)),
+                false
+        );
+        when(providerService.getLatestRatesFromProviders()).thenReturn(response);
+        when(providerService.getFallbackRates(Set.of("BYN")))
+                .thenReturn(Map.of("BYN", BigDecimal.valueOf(3.25)));
+
+        exchangeRateService.refreshRates();
+
+        ArgumentCaptor<List<ExchangeRateEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(exchangeRateRepository, times(2)).saveAll(captor.capture());
+
+        List<ExchangeRateEntity> aggregated = captor.getAllValues().get(0);
+        List<ExchangeRateEntity> fallback = captor.getAllValues().get(1);
+
+        assertThat(aggregated).hasSize(2);
+        assertThat(fallback).hasSize(1);
+        assertThat(fallback.get(0).getTargetCurrency()).isEqualTo(byn);
+        assertThat(fallback.get(0).getSource()).isEqualTo("FRANKFURTER");
+        // Same instant as phase 1 — required for the same-hour bucket cross-rate join
+        assertThat(fallback.get(0).getTimestamp()).isEqualTo(aggregated.get(0).getTimestamp());
+
+        verify(cache).putRate(EUR, byn, BigDecimal.valueOf(3.25));
+    }
+
+    @Test
+    void refreshRates_WithoutMissingCurrencies_ShouldNotCallFallback() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "GBP"));
+
+        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
+                EUR, TEST_DATE,
+                Map.of(USD, BigDecimal.valueOf(1.18), GBP, BigDecimal.valueOf(0.87)),
+                false
+        );
+        when(providerService.getLatestRatesFromProviders()).thenReturn(response);
+
+        exchangeRateService.refreshRates();
+
+        verify(providerService, never()).getFallbackRates(any());
+    }
+
+    @Test
+    void refreshRates_WhenFallbackFails_ShouldKeepPhaseOneResults() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "BYN"));
+
+        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
+                EUR, TEST_DATE, Map.of(USD, BigDecimal.valueOf(1.18)), false
+        );
+        when(providerService.getLatestRatesFromProviders()).thenReturn(response);
+        when(providerService.getFallbackRates(Set.of("BYN")))
+                .thenThrow(new RuntimeException("Frankfurter down"));
+
+        exchangeRateService.refreshRates();
+
+        ArgumentCaptor<List<ExchangeRateEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(exchangeRateRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(entity -> entity.getTargetCurrency().getCurrencyCode())
+                .containsExactly("USD");
+        verify(cache).putRate(EUR, USD, BigDecimal.valueOf(1.18));
+    }
+
+    @Test
+    void refreshRates_WhenFallbackReturnsEmpty_ShouldSaveOnlyAggregatedRates() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "BYN"));
+
+        CurrencyExchangeResponse response = CurrencyExchangeResponse.success(
+                EUR, TEST_DATE, Map.of(USD, BigDecimal.valueOf(1.18)), false
+        );
+        when(providerService.getLatestRatesFromProviders()).thenReturn(response);
+        when(providerService.getFallbackRates(Set.of("BYN"))).thenReturn(Map.of());
+
+        exchangeRateService.refreshRates();
+
+        verify(exchangeRateRepository, times(1)).saveAll(any());
     }
 
     private RateQueryResult createRateQueryResult(BigDecimal rate, String rateType) {

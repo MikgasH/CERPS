@@ -168,6 +168,8 @@ public class ExchangeRateService {
 
             log.info("Exchange rates refreshed - {} rates saved", entities.size());
 
+            fillMissingRatesFromFallback(supportedCodes, entities, baseCurrencyObj, now);
+
         } catch (AllProvidersFailedException e) {
             refreshFailureCount.incrementAndGet();
             log.warn("All providers failed, keeping existing cache and database data: {}", e.getMessage());
@@ -178,6 +180,66 @@ public class ExchangeRateService {
             refreshFailureCount.incrementAndGet();
             log.error("Unexpected error while refreshing exchange rates", e);
             throw e;
+        }
+    }
+
+    /**
+     * Phase 2 of the refresh: supported currencies the primary providers did
+     * not cover are gap-filled from fallback providers (Frankfurter) and
+     * persisted with their own source marker. A failure here must never undo
+     * phase 1, so everything is caught, logged and counted.
+     */
+    private void fillMissingRatesFromFallback(final Set<String> supportedCodes,
+                                              final List<ExchangeRateEntity> aggregatedEntities,
+                                              final Currency baseCurrencyObj,
+                                              final Instant now) {
+        final Set<String> missing = new HashSet<>(supportedCodes);
+        aggregatedEntities.forEach(entity -> missing.remove(entity.getTargetCurrency().getCurrencyCode()));
+        missing.remove(baseCurrencyCode);
+
+        if (missing.isEmpty()) {
+            return;
+        }
+
+        log.info("Gap-filling {} currencies from fallback providers: {}", missing.size(), missing);
+
+        try {
+            final Map<String, BigDecimal> fallbackRates = providerService.getFallbackRates(missing);
+
+            if (fallbackRates.isEmpty()) {
+                meterRegistry.counter("currency.fallback.failures").increment();
+                log.warn("Fallback providers returned no rates for missing currencies: {}", missing);
+                return;
+            }
+
+            final List<ExchangeRateEntity> fallbackEntities = fallbackRates.entrySet().stream()
+                    .filter(entry -> missing.contains(entry.getKey()))
+                    .map(entry -> ExchangeRateEntity.builder()
+                            .id(UUID.randomUUID())
+                            .baseCurrency(baseCurrencyObj)
+                            .targetCurrency(Currency.getInstance(entry.getKey()))
+                            .rate(entry.getValue())
+                            .source(CerpsConstants.EXCHANGE_RATE_SOURCE_FRANKFURTER)
+                            .timestamp(now)
+                            .build()
+                    )
+                    .toList();
+
+            exchangeRateRepository.saveAll(fallbackEntities);
+
+            fallbackEntities.forEach(entity ->
+                    cache.putRate(
+                            entity.getBaseCurrency(),
+                            entity.getTargetCurrency(),
+                            entity.getRate()
+                    )
+            );
+
+            log.info("Gap-fill complete - {} fallback rates saved", fallbackEntities.size());
+
+        } catch (Exception e) {
+            meterRegistry.counter("currency.fallback.failures").increment();
+            log.warn("Fallback gap-fill failed, keeping aggregated rates: {}", e.getMessage());
         }
     }
 

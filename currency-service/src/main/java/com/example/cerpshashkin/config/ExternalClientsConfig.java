@@ -51,6 +51,16 @@ public class ExternalClientsConfig {
                 .build();
     }
 
+    @Bean("frankfurterRestClient")
+    public RestClient frankfurterRestClient(
+            @Value("${api.frankfurter.url}") final String frankfurterUrl) {
+        return RestClient.builder()
+                .baseUrl(frankfurterUrl)
+                .requestFactory(createRequestFactory())
+                .requestInterceptor(correlationIdInterceptor)
+                .build();
+    }
+
     @Bean("geminiRestClient")
     public RestClient geminiRestClient(
             @Value("${gemini.base-url}") final String geminiBaseUrl) {

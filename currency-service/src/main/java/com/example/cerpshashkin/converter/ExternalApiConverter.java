@@ -2,6 +2,7 @@ package com.example.cerpshashkin.converter;
 
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
+import com.example.cerpshashkin.dto.FrankfurterResponse;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class ExternalApiConverter {
     private static final String DEBUG_UNKNOWN_CURRENCY = "Skipping unknown currency from {}: {}";
     private static final String PROVIDER_NAME_FIXER = "Fixer.io";
     private static final String PROVIDER_NAME_EXCHANGE_RATES = "ExchangeRatesAPI";
+    private static final String PROVIDER_NAME_FRANKFURTER = "Frankfurter";
 
     public CurrencyExchangeResponse convertFromFixer(final FixerioResponse fixerResponse) {
         if (fixerResponse == null) {
@@ -49,6 +51,22 @@ public class ExternalApiConverter {
                 exchangeRatesResponse.rateDate(),
                 exchangeRatesResponse.rates(),
                 PROVIDER_NAME_EXCHANGE_RATES,
+                false
+        );
+    }
+
+    public CurrencyExchangeResponse convertFromFrankfurter(final FrankfurterResponse frankfurterResponse) {
+        if (frankfurterResponse == null) {
+            throw new IllegalArgumentException(ERROR_NULL_RESPONSE.replace("{}", FrankfurterResponse.class.getSimpleName()));
+        }
+        // Frankfurter has no success flag or update timestamp — a parsed response is a successful one.
+        return convert(
+                true,
+                Instant.now(),
+                frankfurterResponse.base(),
+                frankfurterResponse.date(),
+                frankfurterResponse.rates(),
+                PROVIDER_NAME_FRANKFURTER,
                 false
         );
     }

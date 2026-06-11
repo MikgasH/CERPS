@@ -50,6 +50,7 @@ public abstract class BaseWireMockTest {
         registry.add("api.fixer.url", () -> baseUrl);
         registry.add("api.exchangerates.url", () -> baseUrl);
         registry.add("api.currencyapi.url", () -> baseUrl);
+        registry.add("api.frankfurter.url", () -> baseUrl);
         registry.add("api.mock1.url", () -> baseUrl);
         registry.add("api.mock2.url", () -> baseUrl);
     }
@@ -91,6 +92,7 @@ public abstract class BaseWireMockTest {
         setupFixerStub();
         setupExchangeRatesStub();
         setupCurrencyApiStub();
+        setupFrankfurterStub();
         setupMockService1Stub();
         setupMockService2Stub();
     }
@@ -120,6 +122,25 @@ public abstract class BaseWireMockTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody(readJsonFile("currencyapi-success-response.json"))));
+    }
+
+    protected void setupFrankfurterStub() {
+        // Frankfurter requests carry a "base" query param and no API key, so they
+        // never match the keyed provider stubs above. The body date must be
+        // dynamic — FrankfurterClient skips responses older than 4 business days.
+        stubFor(get(urlPathMatching("/latest"))
+                .withQueryParam("base", matching("EUR"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(frankfurterResponseBody(java.time.LocalDate.now()))));
+    }
+
+    protected String frankfurterResponseBody(final java.time.LocalDate date) {
+        return "{\"base\": \"EUR\", \"date\": \"" + date + "\", \"rates\": {"
+                + "\"USD\": 1.18, \"GBP\": 0.87, \"JPY\": 130.5, \"CHF\": 1.08,"
+                + "\"CAD\": 1.45, \"AUD\": 1.55, \"CNY\": 7.65, \"SEK\": 10.15,"
+                + "\"NZD\": 1.65}}";
     }
 
     protected void setupMockService1Stub() {

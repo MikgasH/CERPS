@@ -17,7 +17,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -40,7 +42,7 @@ public class ExchangeRateProviderService {
         if (responses.isEmpty()) {
             log.error("All providers failed");
             throw new AllProvidersFailedException(
-                    clients.stream()
+                    primaryClients()
                             .map(ExchangeRateClient::getProviderName)
                             .toList()
             );
@@ -50,11 +52,60 @@ public class ExchangeRateProviderService {
         return aggregateRates(responses);
     }
 
+    /**
+     * Queries fallback providers (excluded from the median) for the given
+     * currency codes. Provider failures are logged and counted, never thrown.
+     */
+    public Map<String, BigDecimal> getFallbackRates(final Set<String> symbols) {
+        if (symbols == null || symbols.isEmpty()) {
+            return Map.of();
+        }
+
+        log.info("Collecting fallback rates for {} currencies", symbols.size());
+
+        final Map<String, BigDecimal> fallbackRates = new HashMap<>();
+
+        fallbackClients().forEach(client -> {
+            final String providerName = client.getProviderName();
+            try {
+                final CurrencyExchangeResponse response = client.getLatestRates(symbols);
+
+                if (!response.success() || response.rates() == null || response.rates().isEmpty()) {
+                    log.warn("Fallback provider {} returned unsuccessful or empty response", providerName);
+                    return;
+                }
+
+                response.rates().forEach((currency, rate) -> {
+                    final String code = currency.getCurrencyCode();
+                    if (symbols.contains(code) && isValidRate(rate)) {
+                        fallbackRates.putIfAbsent(code, rate);
+                    }
+                });
+
+                log.info("Fallback provider {} succeeded", providerName);
+
+            } catch (Exception e) {
+                incrementFailureCounter(providerName);
+                log.warn("Fallback provider {} failed: {}", providerName, e.getMessage());
+            }
+        });
+
+        return fallbackRates;
+    }
+
     private List<CurrencyExchangeResponse> collectRatesFromProviders() {
-        return clients.stream()
+        return primaryClients()
                 .map(this::tryGetRatesFromClient)
                 .flatMap(Optional::stream)
                 .toList();
+    }
+
+    private Stream<ExchangeRateClient> primaryClients() {
+        return clients.stream().filter(client -> !client.isFallback());
+    }
+
+    private Stream<ExchangeRateClient> fallbackClients() {
+        return clients.stream().filter(ExchangeRateClient::isFallback);
     }
 
     private Optional<CurrencyExchangeResponse> tryGetRatesFromClient(final ExchangeRateClient client) {
