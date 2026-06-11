@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.8-roles.xml
   - include:
       file: db/changelog/migrations/v1.9-unique-rate.xml
+  - include:
+      file: db/changelog/migrations/v2.0-add-cis-currencies.yaml

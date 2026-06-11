@@ -1,0 +1,227 @@
+databaseChangeLog:
+  # Each currency gets its own changeset with a MARK_RAN precondition because
+  # production may already contain some of these codes, added at runtime via
+  # POST /api/v1/admin/currencies — a plain insert would violate the unique
+  # constraint and block startup.
+
+  # === CIS / Eastern Partnership ===
+  - changeSet:
+      id: add-currency-rub
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'RUB'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: RUB
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'RUB'
+
+  - changeSet:
+      id: add-currency-amd
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'AMD'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: AMD
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'AMD'
+
+  - changeSet:
+      id: add-currency-azn
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'AZN'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: AZN
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'AZN'
+
+  - changeSet:
+      id: add-currency-mdl
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'MDL'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: MDL
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'MDL'
+
+  - changeSet:
+      id: add-currency-kzt
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'KZT'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: KZT
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'KZT'
+
+  - changeSet:
+      id: add-currency-uzs
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'UZS'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: UZS
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'UZS'
+
+  # === European travel gaps (Iceland + Western Balkans) ===
+  - changeSet:
+      id: add-currency-isk
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'ISK'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: ISK
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'ISK'
+
+  - changeSet:
+      id: add-currency-rsd
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'RSD'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: RSD
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'RSD'
+
+  - changeSet:
+      id: add-currency-bam
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'BAM'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: BAM
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'BAM'
+
+  - changeSet:
+      id: add-currency-mkd
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'MKD'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: MKD
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'MKD'
+
+  - changeSet:
+      id: add-currency-all
+      author: hashkin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM supported_currencies WHERE currency_code = 'ALL'
+      changes:
+        - insert:
+            tableName: supported_currencies
+            columns:
+              - column:
+                  name: currency_code
+                  value: "ALL"
+      rollback:
+        - delete:
+            tableName: supported_currencies
+            where: currency_code = 'ALL'
