@@ -1,8 +1,8 @@
 package com.example.cerpshashkin.converter;
 
+import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
-import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

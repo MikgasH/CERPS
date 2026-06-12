@@ -34,6 +34,10 @@ spring:
 currency-service:
   url: ${CURRENCY_SERVICE_URL:http://localhost:8080}
 
+api:
+  frankfurter:
+    url: https://api.frankfurter.dev/v2
+
 admin:
   api-key: ${ADMIN_API_KEY:}
 
@@ -84,6 +88,12 @@ resilience4j:
         wait-duration: 500ms
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.example.cerps.common.exception.ExternalServiceException
+          - org.springframework.web.client.RestClientException
+      frankfurter:
+        max-attempts: 3
+        wait-duration: 2s
         retry-exceptions:
           - com.example.cerps.common.exception.ExternalServiceException
           - org.springframework.web.client.RestClientException

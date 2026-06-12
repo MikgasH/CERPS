@@ -29,6 +29,10 @@ spring:
 currency-service:
   url: http://localhost:9561
 
+api:
+  frankfurter:
+    url: http://localhost:9562
+
 server:
   port: 0
 

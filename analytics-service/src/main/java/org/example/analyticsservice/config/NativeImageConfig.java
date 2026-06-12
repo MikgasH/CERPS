@@ -2,6 +2,7 @@ package org.example.analyticsservice.config;
 
 import com.example.cerps.common.converter.CurrencyAttributeConverter;
 import com.example.cerps.common.converter.ResponseConverter;
+import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
 import com.example.cerps.common.dto.TrendsRequest;
@@ -35,6 +36,7 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
 
     private void registerDtos(final RuntimeHints hints) {
         register(hints,
+                FrankfurterRateEntry.class,
                 RateHistoryResponse.class,
                 RatePoint.class,
                 TrendsRequest.class,

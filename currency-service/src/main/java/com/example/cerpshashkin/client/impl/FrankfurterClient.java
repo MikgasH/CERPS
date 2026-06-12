@@ -1,9 +1,9 @@
 package com.example.cerpshashkin.client.impl;
 
+import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.client.ApiProvider;
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.converter.ExternalApiConverter;
-import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import io.github.resilience4j.retry.annotation.Retry;

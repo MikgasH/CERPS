@@ -1,9 +1,9 @@
 package com.example.cerpshashkin.unit.converter;
 
+import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.converter.ExternalApiConverter;
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
-import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
