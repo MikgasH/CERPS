@@ -37,7 +37,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Apply entire changelog to empty Postgres 16
         run: |
@@ -62,7 +62,7 @@ jobs:
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
       PGURI: postgresql://${{ secrets.PROD_DB_USERNAME }}:${{ secrets.PROD_DB_PASSWORD }}@${{ secrets.PROD_DB_HOST }}:${{ secrets.PROD_DB_PORT }}/${{ secrets.PROD_DB_NAME }}?sslmode=require
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fail fast if changelog lock is held (do NOT auto-release)
         run: |
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upload pending SQL artifact
         if: steps.status.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: liquibase-update-sql-${{ github.sha }}
           path: /tmp/pending-update.sql
