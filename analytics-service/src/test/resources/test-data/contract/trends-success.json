@@ -1,0 +1,16 @@
+{
+  "from": "USD",
+  "to": "EUR",
+  "period": "30D",
+  "points": [
+    { "timestamp": "2026-05-13T00:00:00Z", "rate": 0.909091 },
+    { "timestamp": "2026-05-28T00:00:00Z", "rate": 0.892857 },
+    { "timestamp": "2026-06-12T00:00:00Z", "rate": 0.847458 }
+  ],
+  "oldRate": 0.909091,
+  "newRate": 0.847458,
+  "changePercentage": -6.78,
+  "startDate": "2026-05-13T00:00:00Z",
+  "endDate": "2026-06-12T00:00:00Z",
+  "dataPoints": 3
+}

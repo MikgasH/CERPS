@@ -1,0 +1,9 @@
+{
+  "type": "https://cerps.example.com/errors/insufficient-data",
+  "title": "Insufficient Data",
+  "status": 404,
+  "detail": "No exchange rate data available for CHF -> CAD",
+  "instance": "/api/v1/analytics/trends",
+  "timestamp": "<dynamic>",
+  "suggestion": "Try a wider date range or retry later once more rate history is available"
+}

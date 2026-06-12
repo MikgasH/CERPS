@@ -4,14 +4,18 @@ Backend microservices for [BudgetControl](#related-repositories).
 
 ## Architecture
 
-Two Spring Boot services backed by a shared PostgreSQL instance:
+Two Spring Boot services, each with its own PostgreSQL instance:
 
 | Service             | Port | Responsibility                                                |
 |---------------------|------|---------------------------------------------------------------|
 | Currency Service    | 8080 | Rate fetching, conversion, rate history, admin, migrations    |
 | Analytics Service   | 8082 | Trend calculation, downsampling, percentage change            |
 
-Analytics Service is database-free; it consumes Currency Service over REST.
+Analytics Service consumes Currency Service over REST and never touches its
+database. Locally, `docker-compose` provisions two separate Postgres containers:
+`postgres-currency` (host port 5434) and `postgres-analytics` (host port 5435,
+reserved for the upcoming historical-rates store — not yet used by application
+code).
 
 ## Tech Stack
 
@@ -48,7 +52,8 @@ Swagger UI (local): http://localhost:8080/swagger-ui.html · http://localhost:80
 |-------------------------|----------|-------------------------------------------------------------------|
 | `POSTGRES_PASSWORD`     | Yes      | PostgreSQL password                                               |
 | `POSTGRES_USER`         | No       | PostgreSQL user (default: `postgres`)                             |
-| `POSTGRES_CURRENCY_DB`  | No       | Database name (default: `currency_db`)                            |
+| `POSTGRES_CURRENCY_DB`  | No       | Currency database name (default: `currency_db`)                   |
+| `POSTGRES_ANALYTICS_DB` | No       | Analytics database name (default: `analytics_db`)                 |
 | `ADMIN_API_KEY`         | Yes      | Auth for `/api/v1/admin/**` (`openssl rand -hex 32`)              |
 | `ENCRYPTION_MASTER_KEY` | Yes      | Base64 256-bit AES key for provider keys (`openssl rand -base64 32`) |
 | `GEMINI_API_KEY`        | No       | Required for `/api/v1/ai/bank-commission`                         |

@@ -1,0 +1,9 @@
+{
+  "type": "https://cerps.example.com/errors/minimum-period-not-supported",
+  "title": "Minimum Period Not Supported",
+  "status": 422,
+  "detail": "1D period not available for this currency pair. Minimum period is 7D.",
+  "instance": "/api/v1/analytics/trends",
+  "timestamp": "<dynamic>",
+  "minimumPeriod": "7D"
+}

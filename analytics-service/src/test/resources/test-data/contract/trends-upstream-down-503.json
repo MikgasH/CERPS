@@ -1,0 +1,11 @@
+{
+  "type": "https://cerps.example.com/errors/external-service-unavailable",
+  "title": "Service Unavailable",
+  "status": 503,
+  "detail": "Upstream currency-service is currently unavailable",
+  "instance": "/api/v1/analytics/trends",
+  "timestamp": "<dynamic>",
+  "upstream": "currency-service",
+  "diagnostic": "Failed to fetch rate history for GBP -> JPY from currency-service",
+  "suggestion": "Retry the request after a short delay"
+}

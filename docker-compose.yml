@@ -52,6 +52,26 @@ services:
       retries: 3
       start_period: 40s
 
+  postgres-analytics:
+    image: postgres:15-alpine
+    container_name: postgres-analytics
+    environment:
+      POSTGRES_DB: ${POSTGRES_ANALYTICS_DB:-analytics_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_analytics_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d analytics_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cerps-network
+    restart: unless-stopped
+
   analytics-service:
     build:
       context: .
@@ -62,8 +82,13 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       CURRENCY_SERVICE_URL: http://currency-service:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-analytics:5432/${POSTGRES_ANALYTICS_DB:-analytics_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     depends_on:
       currency-service:
+        condition: service_healthy
+      postgres-analytics:
         condition: service_healthy
     networks:
       - cerps-network
@@ -77,6 +102,7 @@ services:
 
 volumes:
   postgres_currency_data:
+  postgres_analytics_data:
 
 networks:
   cerps-network:
