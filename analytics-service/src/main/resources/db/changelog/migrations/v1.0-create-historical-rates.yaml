@@ -1,0 +1,80 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-historical-rates-table
+      author: hashkin
+      changes:
+        - createTable:
+            tableName: historical_rates
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: base_currency
+                  type: VARCHAR(3)
+                  defaultValue: EUR
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate_date
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate
+                  type: DECIMAL(20, 10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fetched_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: historical_rates
+            columnNames: base_currency, target_currency, rate_date
+            constraintName: uq_hist_rate
+      rollback:
+        - dropTable:
+            tableName: historical_rates
+
+  - changeSet:
+      id: create-historical-coverage-table
+      author: hashkin
+      changes:
+        - createTable:
+            tableName: historical_coverage
+            columns:
+              - column:
+                  name: target_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: covered_from
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: covered_to
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: historical_coverage

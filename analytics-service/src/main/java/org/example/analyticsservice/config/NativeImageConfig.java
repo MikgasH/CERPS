@@ -1,5 +1,6 @@
 package org.example.analyticsservice.config;
 
+import com.example.cerps.common.converter.CurrencyAttributeConverter;
 import com.example.cerps.common.converter.ResponseConverter;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerps.common.dto.RatePoint;
@@ -7,6 +8,8 @@ import com.example.cerps.common.dto.TrendsRequest;
 import com.example.cerps.common.dto.TrendsResponse;
 import com.example.cerps.common.validation.CurrencyCodeValidator;
 import com.example.cerps.common.validation.PeriodValidator;
+import org.example.analyticsservice.entity.HistoricalCoverage;
+import org.example.analyticsservice.entity.HistoricalRate;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -21,6 +24,13 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
         registerDtos(hints);
         registerValidators(hints);
         registerConverters(hints);
+        registerEntities(hints);
+    }
+
+    private void registerEntities(final RuntimeHints hints) {
+        register(hints,
+                HistoricalRate.class,
+                HistoricalCoverage.class);
     }
 
     private void registerDtos(final RuntimeHints hints) {
@@ -40,7 +50,8 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
     private void registerConverters(final RuntimeHints hints) {
         register(hints,
                 ResponseConverter.CurrencyDeserializer.class,
-                ResponseConverter.TimestampToInstantDeserializer.class);
+                ResponseConverter.TimestampToInstantDeserializer.class,
+                CurrencyAttributeConverter.class);
     }
 
     private void register(final RuntimeHints hints, final Class<?>... types) {

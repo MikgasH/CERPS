@@ -1,0 +1,153 @@
+name: Analytics prod DB migrations (Liquibase)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'analytics-service/src/main/resources/db/changelog/**'
+  workflow_dispatch:
+
+concurrency:
+  group: liquibase-analytics-prod
+  cancel-in-progress: false  # never kill a migration mid-run; queue instead
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  LIQUIBASE_IMAGE: liquibase/liquibase:4.27  # pinned to match migrate-prod-db.yml (checksum format v9)
+  CHANGELOG_FILE: db/changelog/db.changelog-master.yaml
+
+jobs:
+  rehearse:
+    name: Rehearse full changelog on disposable Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rehearsal
+          POSTGRES_PASSWORD: rehearsal
+          POSTGRES_DB: rehearsal
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U rehearsal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Apply entire changelog to empty Postgres 16
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/analytics-service/src/main/resources:/liquibase/changelog" \
+            -e LIQUIBASE_COMMAND_URL='jdbc:postgresql://localhost:5432/rehearsal' \
+            -e LIQUIBASE_COMMAND_USERNAME=rehearsal \
+            -e LIQUIBASE_COMMAND_PASSWORD=rehearsal \
+            "$LIQUIBASE_IMAGE" \
+            --search-path=/liquibase/changelog \
+            --changelog-file="$CHANGELOG_FILE" \
+            update
+
+  migrate:
+    name: Migrate Railway analytics production DB
+    needs: rehearse
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ secrets.PROD_ANALYTICS_DB_HOST }}:${{ secrets.PROD_ANALYTICS_DB_PORT }}/${{ secrets.PROD_ANALYTICS_DB_NAME }}?sslmode=require
+      LIQUIBASE_COMMAND_USERNAME: ${{ secrets.PROD_ANALYTICS_DB_USERNAME }}
+      LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.PROD_ANALYTICS_DB_PASSWORD }}
+      PGURI: postgresql://${{ secrets.PROD_ANALYTICS_DB_USERNAME }}:${{ secrets.PROD_ANALYTICS_DB_PASSWORD }}@${{ secrets.PROD_ANALYTICS_DB_HOST }}:${{ secrets.PROD_ANALYTICS_DB_PORT }}/${{ secrets.PROD_ANALYTICS_DB_NAME }}?sslmode=require
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fail fast if changelog lock is held (do NOT auto-release)
+        run: |
+          LOCKED=$(psql "$PGURI" -tAc \
+            "SELECT COALESCE((SELECT locked::text FROM databasechangeloglock WHERE id = 1), 'absent')")
+          echo "databasechangeloglock.locked = $LOCKED"
+          if [ "$LOCKED" = "true" ] || [ "$LOCKED" = "t" ]; then
+            echo "::error::DATABASECHANGELOGLOCK is held. A previous run may have died mid-migration."
+            echo "::error::Investigate manually before rerunning; this job will NOT release the lock."
+            exit 1
+          fi
+
+      - name: Validate changelog against prod
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/analytics-service/src/main/resources:/liquibase/changelog" \
+            -e LIQUIBASE_COMMAND_URL -e LIQUIBASE_COMMAND_USERNAME -e LIQUIBASE_COMMAND_PASSWORD \
+            "$LIQUIBASE_IMAGE" \
+            --search-path=/liquibase/changelog \
+            --changelog-file="$CHANGELOG_FILE" \
+            validate
+
+      - name: Status check (fail fast on drift, skip if up to date)
+        id: status
+        run: |
+          OUT=$(docker run --rm \
+            -v "$GITHUB_WORKSPACE/analytics-service/src/main/resources:/liquibase/changelog" \
+            -e LIQUIBASE_COMMAND_URL -e LIQUIBASE_COMMAND_USERNAME -e LIQUIBASE_COMMAND_PASSWORD \
+            "$LIQUIBASE_IMAGE" \
+            --search-path=/liquibase/changelog \
+            --changelog-file="$CHANGELOG_FILE" \
+            status --verbose)
+          echo "$OUT"
+          if echo "$OUT" | grep -q "is up to date"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate update SQL (audit trail)
+        if: steps.status.outputs.skip != 'true'
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/analytics-service/src/main/resources:/liquibase/changelog" \
+            -e LIQUIBASE_COMMAND_URL -e LIQUIBASE_COMMAND_USERNAME -e LIQUIBASE_COMMAND_PASSWORD \
+            "$LIQUIBASE_IMAGE" \
+            --search-path=/liquibase/changelog \
+            --changelog-file="$CHANGELOG_FILE" \
+            --output-file=/liquibase/changelog/pending-update.sql \
+            update-sql
+          mv analytics-service/src/main/resources/pending-update.sql /tmp/pending-update.sql
+
+      - name: Upload pending SQL artifact
+        if: steps.status.outputs.skip != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: liquibase-analytics-update-sql-${{ github.sha }}
+          path: /tmp/pending-update.sql
+
+      - name: Apply migrations to prod
+        if: steps.status.outputs.skip != 'true'
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/analytics-service/src/main/resources:/liquibase/changelog" \
+            -e LIQUIBASE_COMMAND_URL -e LIQUIBASE_COMMAND_USERNAME -e LIQUIBASE_COMMAND_PASSWORD \
+            "$LIQUIBASE_IMAGE" \
+            --search-path=/liquibase/changelog \
+            --changelog-file="$CHANGELOG_FILE" \
+            update
+
+      - name: Verify lock released after update
+        if: always() && steps.status.outputs.skip != 'true'
+        run: |
+          LOCKED=$(psql "$PGURI" -tAc "SELECT locked::text FROM databasechangeloglock WHERE id = 1")
+          echo "databasechangeloglock.locked = $LOCKED"
+          if [ "$LOCKED" = "true" ] || [ "$LOCKED" = "t" ]; then
+            echo "::error::Lock still held after update - DO NOT redeploy or rerun until investigated."
+            exit 1
+          fi
+
+      - name: Alert on failure (GitHub issue)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Analytics prod Liquibase migration FAILED for ${GITHUB_SHA}" \
+            --body "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          The changelog lock may still be held. Do not rerun blindly - check DATABASECHANGELOGLOCK first (see databasechangeloglock table), and never auto-release it without confirming no migration is in flight."
