@@ -4,6 +4,7 @@ import com.example.cerps.common.exception.ExternalServiceException;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.GlobalExceptionHandler;
 import org.example.analyticsservice.exception.InsufficientDataException;
+import org.example.analyticsservice.exception.MinimumPeriodNotSupportedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -50,6 +51,20 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getProperties()).containsKey("timestamp");
         assertThat(result.getProperties()).containsKey("invalidCurrency");
         assertThat(result.getProperties().get("invalidCurrency")).isEqualTo("XXX");
+    }
+
+    @Test
+    void handleMinimumPeriodNotSupportedException_ShouldReturn422() {
+        MinimumPeriodNotSupportedException ex = new MinimumPeriodNotSupportedException(
+                "1D period not available for this currency pair. Minimum period is 7D.", "7D");
+
+        ProblemDetail result = handler.handleMinimumPeriodNotSupportedException(ex);
+
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(result.getTitle()).isEqualTo("Minimum Period Not Supported");
+        assertThat(result.getDetail()).contains("Minimum period is 7D");
+        assertThat(result.getProperties()).containsKey("timestamp");
+        assertThat(result.getProperties().get("minimumPeriod")).isEqualTo("7D");
     }
 
     @Test

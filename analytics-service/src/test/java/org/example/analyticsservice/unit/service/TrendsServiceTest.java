@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.InsufficientDataException;
+import org.example.analyticsservice.exception.MinimumPeriodNotSupportedException;
 import org.example.analyticsservice.service.TrendsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -103,6 +104,63 @@ class TrendsServiceTest {
 
         assertThat(result.response()).isNotNull();
         assertThat(result.response().changePercentage()).isEqualByComparingTo("-25.00");
+    }
+
+    @Test
+    void calculateTrends_With1DPeriodForFrankfurterOnlyFromCurrency_ShouldThrow() {
+        when(currencyServiceClient.getSupportedCurrencies())
+                .thenReturn(List.of("USD", "EUR", "BYN"));
+        TrendsRequest request = new TrendsRequest("BYN", "EUR", "1D");
+
+        assertThatThrownBy(() -> service.calculateTrends(request))
+                .isInstanceOf(MinimumPeriodNotSupportedException.class)
+                .hasMessage("1D period not available for this currency pair. Minimum period is 7D.");
+    }
+
+    @Test
+    void calculateTrends_With1DPeriodForFrankfurterOnlyToCurrency_ShouldThrow() {
+        when(currencyServiceClient.getSupportedCurrencies())
+                .thenReturn(List.of("USD", "EUR", "RUB"));
+        TrendsRequest request = new TrendsRequest("EUR", "RUB", "1D");
+
+        assertThatThrownBy(() -> service.calculateTrends(request))
+                .isInstanceOf(MinimumPeriodNotSupportedException.class)
+                .hasMessageContaining("Minimum period is 7D");
+    }
+
+    @Test
+    void calculateTrends_With7DPeriodForFrankfurterOnlyCurrency_ShouldSucceed() {
+        when(currencyServiceClient.getSupportedCurrencies())
+                .thenReturn(List.of("USD", "EUR", "BYN"));
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(7, ChronoUnit.DAYS), new BigDecimal("3.20")),
+                new RatePoint(now, new BigDecimal("3.25"))
+        );
+        when(currencyServiceClient.getRateHistory(eq("BYN"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("BYN", "EUR", points));
+
+        TrendsService.TrendsResult result = service.calculateTrends(request("BYN", "EUR", "7D"));
+
+        assertThat(result.response()).isNotNull();
+        assertThat(result.response().from()).isEqualTo("BYN");
+    }
+
+    @Test
+    void calculateTrends_With1DPeriodForRegularPair_ShouldNotThrowMinimumPeriodException() {
+        List<RatePoint> points = List.of(
+                new RatePoint(now.minus(1, ChronoUnit.DAYS), new BigDecimal("1.10")),
+                new RatePoint(now, new BigDecimal("1.12"))
+        );
+        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
+
+        TrendsService.TrendsResult result = service.calculateTrends(request("USD", "EUR", "1D"));
+
+        assertThat(result.response()).isNotNull();
+    }
+
+    private TrendsRequest request(final String from, final String to, final String period) {
+        return new TrendsRequest(from, to, period);
     }
 
     @Test

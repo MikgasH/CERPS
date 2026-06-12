@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.InsufficientDataException;
+import org.example.analyticsservice.exception.MinimumPeriodNotSupportedException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -35,6 +37,18 @@ public class TrendsService {
     static final int FALLBACK_WIDEN_FACTOR = 2;
     static final Duration FALLBACK_MAX_WINDOW = Duration.ofDays(30);
     private static final int MAX_POINTS_1Y = 365;
+
+    // Currencies covered only by the Frankfurter gap-fill provider in
+    // currency-service: one rate per business day, so a 1D window yields
+    // 1-2 identical points — not enough for a meaningful chart.
+    static final Set<String> FRANKFURTER_ONLY_CURRENCIES = Set.of(
+            "BYN", "RUB", "GEL", "AMD", "AZN", "MDL", "KZT", "UZS",
+            "ISK", "RSD", "BAM", "MKD", "ALL");
+
+    private static final String PERIOD_1D = "1D";
+    private static final String MINIMUM_PERIOD = "7D";
+    private static final String MINIMUM_PERIOD_MESSAGE =
+            "1D period not available for this currency pair. Minimum period is 7D.";
 
     private final CurrencyServiceClient currencyServiceClient;
     private final MeterRegistry meterRegistry;
@@ -66,6 +80,7 @@ public class TrendsService {
 
                 validateSupportedCurrency(fromCode);
                 validateSupportedCurrency(toCode);
+                validateMinimumPeriod(fromCode, toCode, request.period());
 
                 final Instant endDate = Instant.now()
                         .truncatedTo(ChronoUnit.DAYS)
@@ -150,6 +165,14 @@ public class TrendsService {
         final RateHistoryResponse response =
                 currencyServiceClient.getRateHistory(fromCode, toCode, widenedStart, endDate);
         return response != null && response.points() != null ? response.points() : List.of();
+    }
+
+    private void validateMinimumPeriod(final String fromCode, final String toCode, final String period) {
+        final boolean frankfurterOnlyPair = FRANKFURTER_ONLY_CURRENCIES.contains(fromCode)
+                || FRANKFURTER_ONLY_CURRENCIES.contains(toCode);
+        if (frankfurterOnlyPair && PERIOD_1D.equals(period.trim().toUpperCase())) {
+            throw new MinimumPeriodNotSupportedException(MINIMUM_PERIOD_MESSAGE, MINIMUM_PERIOD);
+        }
     }
 
     private void validateSupportedCurrency(final String currencyCode) {

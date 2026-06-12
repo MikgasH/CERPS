@@ -52,6 +52,22 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(MinimumPeriodNotSupportedException.class)
+    public ProblemDetail handleMinimumPeriodNotSupportedException(final MinimumPeriodNotSupportedException ex) {
+        log.error("Minimum period not supported: {}", ex.getMessage());
+
+        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ex.getMessage()
+        );
+        problemDetail.setTitle("Minimum Period Not Supported");
+        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "minimum-period-not-supported"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("minimumPeriod", ex.getMinimumPeriod());
+
+        return problemDetail;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationException(final MethodArgumentNotValidException ex) {
         log.error("Validation error: {}", ex.getMessage());
