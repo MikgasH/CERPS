@@ -66,8 +66,16 @@ jobs:
 
       - name: Fail fast if changelog lock is held (do NOT auto-release)
         run: |
-          LOCKED=$(psql "$PGURI" -tAc \
-            "SELECT COALESCE((SELECT locked::text FROM databasechangeloglock WHERE id = 1), 'absent')")
+          # On a brand-new DB the lock table doesn't exist until the first
+          # Liquibase update creates it - treat that as "not locked".
+          TABLE_EXISTS=$(psql "$PGURI" -tAc \
+            "SELECT to_regclass('public.databasechangeloglock') IS NOT NULL")
+          if [ "$TABLE_EXISTS" != "t" ]; then
+            LOCKED=absent
+          else
+            LOCKED=$(psql "$PGURI" -tAc \
+              "SELECT COALESCE((SELECT locked::text FROM databasechangeloglock WHERE id = 1), 'absent')")
+          fi
           echo "databasechangeloglock.locked = $LOCKED"
           if [ "$LOCKED" = "true" ] || [ "$LOCKED" = "t" ]; then
             echo "::error::DATABASECHANGELOGLOCK is held. A previous run may have died mid-migration."
