@@ -8,6 +8,7 @@ import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.CurrencyNotSupportedException;
 import org.example.analyticsservice.exception.InsufficientDataException;
 import org.example.analyticsservice.exception.MinimumPeriodNotSupportedException;
+import org.example.analyticsservice.service.HistoricalRatesService;
 import org.example.analyticsservice.service.TrendsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,12 +33,15 @@ class TrendsServiceTest {
     @Mock
     private CurrencyServiceClient currencyServiceClient;
 
+    @Mock
+    private HistoricalRatesService historicalRatesService;
+
     private TrendsService service;
     private final Instant now = Instant.now();
 
     @BeforeEach
     void setUp() {
-        service = new TrendsService(currencyServiceClient, new SimpleMeterRegistry());
+        service = new TrendsService(currencyServiceClient, historicalRatesService, new SimpleMeterRegistry());
         service.initMetrics();
 
         when(currencyServiceClient.getSupportedCurrencies())
@@ -51,8 +55,8 @@ class TrendsServiceTest {
                 new RatePoint(now.minus(7, ChronoUnit.DAYS), new BigDecimal("1.10")),
                 new RatePoint(now, new BigDecimal("1.18"))
         );
-        when(currencyServiceClient.getRateHistory(eq("USD"), eq("EUR"), any(), any()))
-                .thenReturn(new RateHistoryResponse("USD", "EUR", points));
+        when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(points);
 
         TrendsService.TrendsResult result = service.calculateTrends(request);
 

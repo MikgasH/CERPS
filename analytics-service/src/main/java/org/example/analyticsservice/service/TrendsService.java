@@ -50,7 +50,13 @@ public class TrendsService {
     private static final String MINIMUM_PERIOD_MESSAGE =
             "1D period not available for this currency pair. Minimum period is 7D.";
 
+    private static final String HISTORICAL_FALLBACK_LOG =
+            "Historical store yielded {} point(s) for {} -> {} - falling back to currency-service history";
+    private static final String HISTORICAL_FAILURE_LOG =
+            "Historical store failed for {} -> {} - falling back to currency-service history: {}";
+
     private final CurrencyServiceClient currencyServiceClient;
+    private final HistoricalRatesService historicalRatesService;
     private final MeterRegistry meterRegistry;
 
     private Counter trendsSuccessCounter;
@@ -88,18 +94,24 @@ public class TrendsService {
                         .minusMillis(1);
                 final Instant startDate = calculateStartDate(endDate, request.period());
 
-                RateHistoryResponse history = currencyServiceClient
-                        .getRateHistory(fromCode, toCode, startDate, endDate);
-                List<RatePoint> rates = history.points();
-                boolean widenedFallback = false;
+                // 1D needs intraday points, which only the currency-service
+                // scheduler produces - it keeps the legacy path verbatim.
+                // 7D..1Y are served from the daily historical store, with the
+                // legacy path as fallback (cold store / Frankfurter down).
+                List<RatePoint> rates;
+                boolean fromFallback = false;
 
-                if (rates.size() < 2) {
-                    final List<RatePoint> widened = widenWindow(fromCode, toCode, startDate, endDate);
-                    if (widened.size() >= 2) {
-                        rates = widened;
-                        widenedFallback = true;
-                        log.info("Used widened fallback window for {} -> {} - {} points",
-                                fromCode, toCode, rates.size());
+                if (PERIOD_1D.equals(request.period().trim().toUpperCase())) {
+                    final LegacyHistory legacy = fetchLegacyHistory(fromCode, toCode, startDate, endDate);
+                    rates = legacy.points();
+                    fromFallback = legacy.widened();
+                } else {
+                    rates = fetchHistoricalPoints(fromCode, toCode, startDate, endDate);
+                    if (rates.size() < 2) {
+                        log.warn(HISTORICAL_FALLBACK_LOG, rates.size(), fromCode, toCode);
+                        final LegacyHistory legacy = fetchLegacyHistory(fromCode, toCode, startDate, endDate);
+                        rates = legacy.points();
+                        fromFallback = true;
                     }
                 }
 
@@ -143,12 +155,56 @@ public class TrendsService {
                         newestRate.timestamp(),
                         rates.size()
                 );
-                return new TrendsResult(response, widenedFallback);
+                return new TrendsResult(response, fromFallback);
             } catch (Exception e) {
                 trendsFailureCounter.increment();
                 throw e;
             }
         });
+    }
+
+    /**
+     * Legacy data acquisition against currency-service, including the
+     * widened-window retry. Used directly for 1D and as the fallback source
+     * for 7D..1Y when the historical store cannot serve the window.
+     */
+    private LegacyHistory fetchLegacyHistory(final String fromCode, final String toCode,
+                                             final Instant startDate, final Instant endDate) {
+        final RateHistoryResponse history = currencyServiceClient
+                .getRateHistory(fromCode, toCode, startDate, endDate);
+        List<RatePoint> rates = history.points();
+        boolean widenedFallback = false;
+
+        if (rates.size() < 2) {
+            final List<RatePoint> widened = widenWindow(fromCode, toCode, startDate, endDate);
+            if (widened.size() >= 2) {
+                rates = widened;
+                widenedFallback = true;
+                log.info("Used widened fallback window for {} -> {} - {} points",
+                        fromCode, toCode, rates.size());
+            }
+        }
+        return new LegacyHistory(rates, widenedFallback);
+    }
+
+    /**
+     * Daily points from the local historical store (lazily backfilled from
+     * Frankfurter). Failures are swallowed and reported as an empty list so
+     * the caller falls back to the legacy currency-service path; if that
+     * fallback also fails, its own exception taxonomy (404/503) applies.
+     */
+    private List<RatePoint> fetchHistoricalPoints(final String fromCode, final String toCode,
+                                                  final Instant startDate, final Instant endDate) {
+        try {
+            final List<RatePoint> points = historicalRatesService.getRatePoints(
+                    fromCode, toCode,
+                    startDate.atZone(ZoneOffset.UTC).toLocalDate(),
+                    endDate.atZone(ZoneOffset.UTC).toLocalDate());
+            return points != null ? points : List.of();
+        } catch (RuntimeException e) {
+            log.warn(HISTORICAL_FAILURE_LOG, fromCode, toCode, e.getMessage());
+            return List.of();
+        }
     }
 
     private List<RatePoint> widenWindow(final String fromCode, final String toCode,
@@ -246,5 +302,8 @@ public class TrendsService {
     }
 
     public record TrendsResult(TrendsResponse response, boolean fromFallback) {
+    }
+
+    private record LegacyHistory(List<RatePoint> points, boolean widened) {
     }
 }

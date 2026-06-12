@@ -7,6 +7,7 @@ import com.example.cerps.common.dto.TrendsRequest;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.example.analyticsservice.client.CurrencyServiceClient;
 import org.example.analyticsservice.exception.InsufficientDataException;
+import org.example.analyticsservice.service.HistoricalRatesService;
 import org.example.analyticsservice.service.TrendsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,12 +35,15 @@ class TrendsServiceDownsampleTest {
     @Mock
     private CurrencyServiceClient currencyServiceClient;
 
+    @Mock
+    private HistoricalRatesService historicalRatesService;
+
     private TrendsService service;
     private final Instant now = Instant.now();
 
     @BeforeEach
     void setUp() {
-        service = new TrendsService(currencyServiceClient, new SimpleMeterRegistry());
+        service = new TrendsService(currencyServiceClient, historicalRatesService, new SimpleMeterRegistry());
         service.initMetrics();
     }
 
