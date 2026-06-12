@@ -11,7 +11,11 @@
             app_write — read/write access for the application service account.
             app_admin — full privileges for administrative operations.
         </comment>
-        <sql>
+        <!-- Checksum recorded on prod before splitStatements was added (changelog-sync,
+             2026-06; roles already exist there). The edit only fixes statement splitting
+             for the DO $$ block - the SQL semantics are unchanged. -->
+        <validCheckSum>9:f5eca14129107e15fcbc852ce36e221b</validCheckSum>
+        <sql splitStatements="false">
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_read') THEN
                     CREATE ROLE app_read;
