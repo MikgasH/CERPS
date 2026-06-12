@@ -14,6 +14,7 @@ import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
 import com.example.cerpshashkin.dto.FrankfurterResponse;
 import com.example.cerpshashkin.dto.GeminiRequest;
+import com.example.cerpshashkin.dto.HistoricalRatesResponse;
 import com.example.cerpshashkin.dto.GeminiResponse;
 import com.example.cerpshashkin.repository.RateQueryResult;
 import org.springframework.aot.hint.MemberCategory;
@@ -64,6 +65,7 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
                 ConversionRequest.class,
                 ConversionResponse.class,
                 RateHistoryResponse.class,
+                HistoricalRatesResponse.class,
                 RatePoint.class);
     }
 

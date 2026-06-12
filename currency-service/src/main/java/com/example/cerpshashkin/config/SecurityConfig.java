@@ -27,6 +27,7 @@ public class SecurityConfig {
             "/actuator/**",
             "/api/v1/currencies/**",
             "/api/v1/rates/**",
+            "/api/v1/rates/historical",
             "/api/v1/ai/**"
     };
 

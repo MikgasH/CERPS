@@ -198,6 +198,40 @@ class ExchangeRateRepositoryTest {
         assertThat(results.getFirst().getTargetCurrency().getCurrencyCode()).isEqualTo("USD");
     }
 
+    @Test
+    void findLatestPerTargetInWindow_ShouldReturnLatestSnapshotPerCurrency() {
+        Instant windowStart = now.minus(2, ChronoUnit.DAYS);
+        Instant windowEnd = now.plus(1, ChronoUnit.HOURS);
+
+        repository.save(createRate(EUR, USD, BigDecimal.valueOf(1.17), now.minus(1, ChronoUnit.DAYS)));
+        repository.save(createRate(EUR, USD, BigDecimal.valueOf(1.18), now));
+        repository.save(createRate(EUR, GBP, BigDecimal.valueOf(0.87), now.minus(1, ChronoUnit.DAYS)));
+
+        List<ExchangeRateEntity> results = repository
+                .findLatestPerTargetInWindow("EUR", windowStart, windowEnd);
+
+        assertThat(results).hasSize(2);
+        assertThat(results)
+                .filteredOn(e -> e.getTargetCurrency().equals(USD))
+                .first()
+                .extracting(ExchangeRateEntity::getRate)
+                .satisfies(rate -> assertThat(rate).isEqualByComparingTo(BigDecimal.valueOf(1.18)));
+    }
+
+    @Test
+    void findLatestPerTargetInWindow_ShouldExcludeRatesOutsideWindow() {
+        Instant windowStart = now.minus(1, ChronoUnit.DAYS);
+        Instant windowEnd = now;
+
+        repository.save(createRate(EUR, USD, BigDecimal.valueOf(1.17), windowStart.minus(1, ChronoUnit.HOURS)));
+        repository.save(createRate(EUR, GBP, BigDecimal.valueOf(0.87), windowEnd.plus(1, ChronoUnit.HOURS)));
+
+        List<ExchangeRateEntity> results = repository
+                .findLatestPerTargetInWindow("EUR", windowStart, windowEnd);
+
+        assertThat(results).isEmpty();
+    }
+
     private ExchangeRateEntity createRate(Currency base, Currency target, BigDecimal rate, Instant timestamp) {
         return ExchangeRateEntity.builder()
                 .id(UUID.randomUUID())

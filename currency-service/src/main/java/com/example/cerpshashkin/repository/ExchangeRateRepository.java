@@ -189,4 +189,19 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             @Param("baseCurrency") String baseCurrency,
             @Param("maxAge") Instant maxAge
     );
+
+    @Query(value = """
+            SELECT DISTINCT ON (target_currency)
+                   id, base_currency, target_currency, rate, source, timestamp
+            FROM exchange_rates
+            WHERE base_currency = :baseCurrency
+              AND timestamp >= :windowStart
+              AND timestamp < :windowEnd
+            ORDER BY target_currency, timestamp DESC
+            """, nativeQuery = true)
+    List<ExchangeRateEntity> findLatestPerTargetInWindow(
+            @Param("baseCurrency") String baseCurrency,
+            @Param("windowStart") Instant windowStart,
+            @Param("windowEnd") Instant windowEnd
+    );
 }

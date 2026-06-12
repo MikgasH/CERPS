@@ -4,7 +4,9 @@ import com.example.cerps.common.dto.ConversionRequest;
 import com.example.cerps.common.dto.ConversionResponse;
 import com.example.cerps.common.dto.RateHistoryResponse;
 import com.example.cerpshashkin.dto.CurrentRatesResponse;
+import com.example.cerpshashkin.dto.HistoricalRatesResponse;
 import com.example.cerpshashkin.service.CurrencyService;
+import com.example.cerpshashkin.service.HistoricalRateService;
 import com.example.cerpshashkin.service.RateHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -29,6 +32,7 @@ public class CurrencyController {
 
     private final CurrencyService currencyService;
     private final RateHistoryService rateHistoryService;
+    private final HistoricalRateService historicalRateService;
 
     @GetMapping("/currencies")
     @Operation(summary = "Get list of supported currencies")
@@ -53,6 +57,16 @@ public class CurrencyController {
         final String normalizedBase = base.trim().toUpperCase();
         log.info("GET /api/v1/rates/current?base={}", normalizedBase);
         return ResponseEntity.ok(currencyService.getCurrentRatesForBase(normalizedBase));
+    }
+
+    @GetMapping("/rates/historical")
+    @Operation(summary = "Get all exchange rates for a base currency on a specific date")
+    public ResponseEntity<HistoricalRatesResponse> getHistoricalRates(
+            @RequestParam(required = false, defaultValue = "EUR") final String base,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
+        final String normalizedBase = base.trim().toUpperCase();
+        log.info("GET /api/v1/rates/historical?base={}&date={}", normalizedBase, date);
+        return ResponseEntity.ok(historicalRateService.getHistoricalRates(normalizedBase, date));
     }
 
     @GetMapping("/rates/history")

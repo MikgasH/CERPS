@@ -43,6 +43,12 @@ public class GlobalExceptionHandler {
         return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage());
     }
 
+    @ExceptionHandler(HistoricalRatesNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ProblemDetail handleHistoricalRatesNotFoundException(final HistoricalRatesNotFoundException ex) {
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Historical rates not found", ex.getMessage());
+    }
+
     @ExceptionHandler(RateNotAvailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleRateNotAvailableException(final RateNotAvailableException ex) {
