@@ -32,6 +32,12 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
         register(hints,
                 HistoricalRate.class,
                 HistoricalCoverage.class);
+        // HistoricalCoverage has a Currency-typed @Id, so Hibernate's
+        // MultiIdEntityLoaderArrayParam instantiates Currency[] reflectively
+        // at runtime (same pattern as UUID[] in currency-service).
+        hints.reflection().registerType(
+                java.util.Currency[].class,
+                MemberCategory.UNSAFE_ALLOCATED);
     }
 
     private void registerDtos(final RuntimeHints hints) {
