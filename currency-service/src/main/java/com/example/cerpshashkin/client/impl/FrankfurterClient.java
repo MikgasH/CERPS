@@ -3,13 +3,14 @@ package com.example.cerpshashkin.client.impl;
 import com.example.cerpshashkin.client.ApiProvider;
 import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.converter.ExternalApiConverter;
-import com.example.cerpshashkin.dto.FrankfurterResponse;
+import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
@@ -17,7 +18,7 @@ import org.springframework.web.util.UriBuilder;
 import java.net.URI;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -27,18 +28,24 @@ import java.util.function.Function;
  * Gap-fill provider: free ECB-based rates, no API key. Excluded from the
  * median aggregation ({@link #isFallback()}) — queried only for currencies
  * the primary providers did not return.
+ *
+ * <p>Frankfurter v2 exposes a single {@code /rates} endpoint returning a flat
+ * JSON array of per-pair entries; without a {@code date} parameter it serves
+ * the latest available rates (there is no {@code /latest} path in v2).
  */
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class FrankfurterClient implements ExchangeRateClient {
 
-    private static final String LATEST_ENDPOINT = "/latest";
-    private static final String HISTORICAL_ENDPOINT = "/rates";
+    private static final String RATES_ENDPOINT = "/rates";
     private static final String BASE_PARAM = "base";
     private static final String QUOTES_PARAM = "quotes";
     private static final String DATE_PARAM = "date";
     private static final String BASE_CURRENCY = "EUR";
+
+    private static final ParameterizedTypeReference<List<FrankfurterRateEntry>> RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() { };
 
     // Some central banks pause publication around long holidays; older data is
     // worse than no data because it would be presented as fresh.
@@ -50,12 +57,10 @@ public class FrankfurterClient implements ExchangeRateClient {
     private static final String FETCHING_LATEST_LOG = "Fetching latest rates from {}";
     private static final String FETCHING_HISTORICAL_LOG = "Fetching historical rates from {} for date {}";
     private static final String SUCCESS_LOG = "Successfully received response from Frankfurter";
-    private static final String STALE_RESPONSE_LOG =
-            "Frankfurter response date {} is more than {} business days old — skipping rates";
+    private static final String STALE_ENTRIES_LOG =
+            "Dropped {} Frankfurter entries older than {} business days";
 
     private static final String NULL_RESPONSE_ERROR = "Null response received";
-    private static final String EMPTY_RATES_ERROR = "Empty rates received";
-    private static final String MISSING_DATE_ERROR = "Response date is missing";
     private static final String HTTP_ERROR_PREFIX = "HTTP error: ";
 
     private final RestClient frankfurterRestClient;
@@ -72,44 +77,48 @@ public class FrankfurterClient implements ExchangeRateClient {
     public CurrencyExchangeResponse getLatestRates(final Set<String> symbols) {
         log.info(FETCHING_LATEST_LOG, getProviderName());
 
-        final FrankfurterResponse response = executeRequest(OPERATION_LATEST, uriBuilder -> {
-            uriBuilder.path(LATEST_ENDPOINT).queryParam(BASE_PARAM, BASE_CURRENCY);
+        final List<FrankfurterRateEntry> entries = executeRequest(OPERATION_LATEST, uriBuilder -> {
+            uriBuilder.path(RATES_ENDPOINT).queryParam(BASE_PARAM, BASE_CURRENCY);
             appendQuotes(uriBuilder, symbols);
             return uriBuilder.build();
         });
 
-        validateResponse(response, OPERATION_LATEST);
+        validateResponse(entries, OPERATION_LATEST);
 
-        if (isStale(response.date(), LocalDate.now())) {
-            log.warn(STALE_RESPONSE_LOG, response.date(), MAX_STALE_BUSINESS_DAYS);
+        final LocalDate today = LocalDate.now();
+        final List<FrankfurterRateEntry> fresh = entries.stream()
+                .filter(entry -> entry.date() != null && !isStale(entry.date(), today))
+                .toList();
+
+        if (fresh.size() < entries.size()) {
+            log.warn(STALE_ENTRIES_LOG, entries.size() - fresh.size(), MAX_STALE_BUSINESS_DAYS);
             meterRegistry.counter("currency.provider.failures", "provider", getProviderName()).increment();
-            return CurrencyExchangeResponse.success(response.base(), response.date(), Map.of(), false);
         }
 
         log.debug(SUCCESS_LOG);
-        return converter.convertFromFrankfurter(response);
+        return converter.convertFromFrankfurter(fresh);
     }
 
     @Retry(name = "frankfurterClient")
     public CurrencyExchangeResponse getHistoricalRates(final LocalDate date, final Set<String> symbols) {
         log.info(FETCHING_HISTORICAL_LOG, getProviderName(), date);
 
-        final FrankfurterResponse response = executeRequest(OPERATION_HISTORICAL, uriBuilder -> {
-            uriBuilder.path(HISTORICAL_ENDPOINT)
+        final List<FrankfurterRateEntry> entries = executeRequest(OPERATION_HISTORICAL, uriBuilder -> {
+            uriBuilder.path(RATES_ENDPOINT)
                     .queryParam(DATE_PARAM, date)
                     .queryParam(BASE_PARAM, BASE_CURRENCY);
             appendQuotes(uriBuilder, symbols);
             return uriBuilder.build();
         });
 
-        validateResponse(response, OPERATION_HISTORICAL);
+        validateResponse(entries, OPERATION_HISTORICAL);
 
         log.debug(SUCCESS_LOG);
-        return converter.convertFromFrankfurter(response);
+        return converter.convertFromFrankfurter(entries);
     }
 
     /**
-     * A response is stale when its rate date lies more than
+     * A response entry is stale when its rate date lies more than
      * {@value #MAX_STALE_BUSINESS_DAYS} business days before {@code today}.
      */
     public static boolean isStale(final LocalDate responseDate, final LocalDate today) {
@@ -125,8 +134,8 @@ public class FrankfurterClient implements ExchangeRateClient {
         return businessDays > MAX_STALE_BUSINESS_DAYS;
     }
 
-    private FrankfurterResponse executeRequest(final String operation,
-                                               final Function<UriBuilder, URI> uriFunction) {
+    private List<FrankfurterRateEntry> executeRequest(final String operation,
+                                                      final Function<UriBuilder, URI> uriFunction) {
         return frankfurterRestClient.get()
                 .uri(uriFunction)
                 .retrieve()
@@ -135,7 +144,7 @@ public class FrankfurterClient implements ExchangeRateClient {
                             throw new ExternalApiException(operation, getProviderName(),
                                     HTTP_ERROR_PREFIX + httpResponse.getStatusCode());
                         })
-                .body(FrankfurterResponse.class);
+                .body(RESPONSE_TYPE);
     }
 
     private void appendQuotes(final UriBuilder uriBuilder, final Set<String> symbols) {
@@ -144,15 +153,11 @@ public class FrankfurterClient implements ExchangeRateClient {
         }
     }
 
-    private void validateResponse(final FrankfurterResponse response, final String operation) {
-        final FrankfurterResponse validResponse = Optional.ofNullable(response)
+    private void validateResponse(final List<FrankfurterRateEntry> entries, final String operation) {
+        // An empty array is a valid "no data" answer (e.g. quotes Frankfurter
+        // does not track) — callers map it to 404 / skip. Only null is an error.
+        Optional.ofNullable(entries)
                 .orElseThrow(() -> new ExternalApiException(operation, getProviderName(), NULL_RESPONSE_ERROR));
-
-        Optional.ofNullable(validResponse.rates())
-                .orElseThrow(() -> new ExternalApiException(operation, getProviderName(), EMPTY_RATES_ERROR));
-
-        Optional.ofNullable(validResponse.date())
-                .orElseThrow(() -> new ExternalApiException(operation, getProviderName(), MISSING_DATE_ERROR));
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.example.cerpshashkin.unit.converter;
 import com.example.cerpshashkin.converter.ExternalApiConverter;
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
+import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Currency;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -216,5 +218,66 @@ class ExternalApiConverterTest {
         assertThat(result).isNotNull();
         assertThat(result.success()).isTrue();
         assertThat(result.rates()).isEmpty();
+    }
+
+    @Test
+    void convertFromFrankfurter_WithValidEntries_ShouldReturnSuccess() {
+        List<FrankfurterRateEntry> entries = List.of(
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        "USD", BigDecimal.valueOf(1.1645)),
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        "PLN", BigDecimal.valueOf(4.214))
+        );
+
+        CurrencyExchangeResponse result = converter.convertFromFrankfurter(entries);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.base()).isEqualTo(Currency.getInstance("EUR"));
+        assertThat(result.rateDate()).isEqualTo(LocalDate.of(2026, 1, 15));
+        assertThat(result.rates())
+                .containsEntry(Currency.getInstance("USD"), BigDecimal.valueOf(1.1645))
+                .containsEntry(Currency.getInstance("PLN"), BigDecimal.valueOf(4.214));
+    }
+
+    @Test
+    void convertFromFrankfurter_WithEmptyList_ShouldReturnSuccessWithEmptyRates() {
+        CurrencyExchangeResponse result = converter.convertFromFrankfurter(List.of());
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.rates()).isEmpty();
+    }
+
+    @Test
+    void convertFromFrankfurter_WithUnknownQuoteCurrency_ShouldSkipIt() {
+        List<FrankfurterRateEntry> entries = List.of(
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        "USD", BigDecimal.valueOf(1.1645)),
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        "XXY", BigDecimal.valueOf(2.0))
+        );
+
+        CurrencyExchangeResponse result = converter.convertFromFrankfurter(entries);
+
+        assertThat(result.rates()).containsOnlyKeys(Currency.getInstance("USD"));
+    }
+
+    @Test
+    void convertFromFrankfurter_WithNullFieldsInEntry_ShouldSkipEntry() {
+        List<FrankfurterRateEntry> entries = List.of(
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        null, BigDecimal.valueOf(2.0)),
+                new FrankfurterRateEntry(LocalDate.of(2026, 1, 15), Currency.getInstance("EUR"),
+                        "USD", null)
+        );
+
+        CurrencyExchangeResponse result = converter.convertFromFrankfurter(entries);
+
+        assertThat(result.rates()).isEmpty();
+    }
+
+    @Test
+    void convertFromFrankfurter_WithNullList_ShouldThrowException() {
+        assertThatThrownBy(() -> converter.convertFromFrankfurter(null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

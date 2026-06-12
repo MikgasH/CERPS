@@ -6,13 +6,19 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Currency;
-import java.util.Map;
 
-public record FrankfurterResponse(
+/**
+ * One element of the Frankfurter v2 {@code /rates} response, which is a flat
+ * JSON array of per-pair objects:
+ * {@code [{"date":"2026-01-15","base":"EUR","quote":"USD","rate":1.1645}, ...]}.
+ */
+public record FrankfurterRateEntry(
+        LocalDate date,
+
         @JsonDeserialize(using = ResponseConverter.CurrencyDeserializer.class)
         Currency base,
 
-        LocalDate date,
+        String quote,
 
-        Map<String, BigDecimal> rates
+        BigDecimal rate
 ) {}

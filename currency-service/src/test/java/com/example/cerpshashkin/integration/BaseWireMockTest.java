@@ -125,10 +125,11 @@ public abstract class BaseWireMockTest {
     }
 
     protected void setupFrankfurterStub() {
-        // Frankfurter requests carry a "base" query param and no API key, so they
-        // never match the keyed provider stubs above. The body date must be
-        // dynamic — FrankfurterClient skips responses older than 4 business days.
-        stubFor(get(urlPathMatching("/latest"))
+        // Frankfurter v2 serves a flat array from /rates (no /latest path) and
+        // carries a "base" query param, so it never matches the keyed provider
+        // stubs above. The body date must be dynamic — FrankfurterClient drops
+        // entries older than 4 business days.
+        stubFor(get(urlPathMatching("/rates"))
                 .withQueryParam("base", matching("EUR"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -137,10 +138,24 @@ public abstract class BaseWireMockTest {
     }
 
     protected String frankfurterResponseBody(final java.time.LocalDate date) {
-        return "{\"base\": \"EUR\", \"date\": \"" + date + "\", \"rates\": {"
-                + "\"USD\": 1.18, \"GBP\": 0.87, \"JPY\": 130.5, \"CHF\": 1.08,"
-                + "\"CAD\": 1.45, \"AUD\": 1.55, \"CNY\": 7.65, \"SEK\": 10.15,"
-                + "\"NZD\": 1.65}}";
+        final java.util.Map<String, String> rates = new java.util.LinkedHashMap<>();
+        rates.put("USD", "1.18");
+        rates.put("GBP", "0.87");
+        rates.put("JPY", "130.5");
+        rates.put("CHF", "1.08");
+        rates.put("CAD", "1.45");
+        rates.put("AUD", "1.55");
+        rates.put("CNY", "7.65");
+        rates.put("SEK", "10.15");
+        rates.put("NZD", "1.65");
+        return frankfurterArrayBody(date, rates);
+    }
+
+    protected String frankfurterArrayBody(final java.time.LocalDate date, final java.util.Map<String, String> rates) {
+        return rates.entrySet().stream()
+                .map(entry -> "{\"date\": \"" + date + "\", \"base\": \"EUR\", \"quote\": \""
+                        + entry.getKey() + "\", \"rate\": " + entry.getValue() + "}")
+                .collect(java.util.stream.Collectors.joining(", ", "[", "]"));
     }
 
     protected void setupMockService1Stub() {

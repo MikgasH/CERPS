@@ -9,9 +9,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.util.Currency;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -26,20 +29,22 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
 
     @Test
     void getLatestRates_WithSymbols_ShouldReturnRequestedRates() {
-        stubFor(get(urlPathEqualTo("/latest"))
+        stubFor(get(urlPathEqualTo("/rates"))
                 .withQueryParam("base", equalTo("EUR"))
                 .withQueryParam("quotes", equalTo("BYN,RUB"))
+                .withQueryParam("date", absent())
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"base\": \"EUR\", \"date\": \"" + LocalDate.now()
-                                + "\", \"rates\": {\"BYN\": 3.25, \"RUB\": 95.5}}")));
+                        .withBody(frankfurterArrayBody(LocalDate.now(),
+                                ratesOf("BYN", "3.25", "RUB", "95.5")))));
 
         CurrencyExchangeResponse result = frankfurterClient.getLatestRates(Set.of("RUB", "BYN"));
 
         assertThat(result).isNotNull();
         assertThat(result.success()).isTrue();
         assertThat(result.base()).isEqualTo(Currency.getInstance("EUR"));
+        assertThat(result.rateDate()).isEqualTo(LocalDate.now());
         assertThat(result.rates()).containsKeys(
                 Currency.getInstance("BYN"),
                 Currency.getInstance("RUB")
@@ -56,21 +61,38 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
     }
 
     @Test
-    void getLatestRates_WhenResponseDateIsStale_ShouldReturnEmptyRates() {
-        stubFor(get(urlPathEqualTo("/latest"))
+    void getLatestRates_WhenEntriesAreStale_ShouldReturnEmptyRates() {
+        stubFor(get(urlPathEqualTo("/rates"))
                 .withQueryParam("base", equalTo("EUR"))
                 .withQueryParam("quotes", equalTo("BYN"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"base\": \"EUR\", \"date\": \"" + LocalDate.now().minusDays(14)
-                                + "\", \"rates\": {\"BYN\": 3.25}}")));
+                        .withBody(frankfurterArrayBody(LocalDate.now().minusDays(14),
+                                ratesOf("BYN", "3.25")))));
 
         CurrencyExchangeResponse result = frankfurterClient.getLatestRates(Set.of("BYN"));
 
         assertThat(result).isNotNull();
         assertThat(result.success()).isTrue();
         assertThat(result.rates()).isEmpty();
+    }
+
+    @Test
+    void getLatestRates_WithMixedFreshAndStaleEntries_ShouldKeepOnlyFresh() {
+        String body = "[{\"date\": \"" + LocalDate.now() + "\", \"base\": \"EUR\", \"quote\": \"BYN\", \"rate\": 3.25},"
+                + " {\"date\": \"" + LocalDate.now().minusDays(14) + "\", \"base\": \"EUR\", \"quote\": \"RUB\", \"rate\": 95.5}]";
+        stubFor(get(urlPathEqualTo("/rates"))
+                .withQueryParam("base", equalTo("EUR"))
+                .withQueryParam("quotes", equalTo("BYN,RUB"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+
+        CurrencyExchangeResponse result = frankfurterClient.getLatestRates(Set.of("BYN", "RUB"));
+
+        assertThat(result.rates()).containsOnlyKeys(Currency.getInstance("BYN"));
     }
 
     @Test
@@ -84,8 +106,8 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"base\": \"EUR\", \"date\": \"2024-03-15\","
-                                + " \"rates\": {\"USD\": 1.09, \"PLN\": 4.29}}")));
+                        .withBody(frankfurterArrayBody(date,
+                                ratesOf("USD", "1.09", "PLN", "4.29")))));
 
         CurrencyExchangeResponse result = frankfurterClient.getHistoricalRates(date, Set.of("USD", "PLN"));
 
@@ -99,8 +121,45 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
     }
 
     @Test
+    void getHistoricalRates_WithEmptyArray_ShouldReturnEmptyRates() {
+        LocalDate date = LocalDate.of(2005, 6, 1);
+
+        stubFor(get(urlPathEqualTo("/rates"))
+                .withQueryParam("date", equalTo("2005-06-01"))
+                .withQueryParam("base", equalTo("EUR"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("[]")));
+
+        CurrencyExchangeResponse result = frankfurterClient.getHistoricalRates(date, Set.of("BYN"));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.rates()).isEmpty();
+    }
+
+    @Test
+    void getHistoricalRates_ShouldSkipUnknownQuoteCurrencies() {
+        LocalDate date = LocalDate.of(2024, 3, 15);
+        String body = "[{\"date\": \"2024-03-15\", \"base\": \"EUR\", \"quote\": \"USD\", \"rate\": 1.09},"
+                + " {\"date\": \"2024-03-15\", \"base\": \"EUR\", \"quote\": \"XXY\", \"rate\": 2.0}]";
+
+        stubFor(get(urlPathEqualTo("/rates"))
+                .withQueryParam("date", equalTo("2024-03-15"))
+                .withQueryParam("base", equalTo("EUR"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+
+        CurrencyExchangeResponse result = frankfurterClient.getHistoricalRates(date, Set.of("USD", "XXY"));
+
+        assertThat(result.rates()).containsOnlyKeys(Currency.getInstance("USD"));
+    }
+
+    @Test
     void getLatestRates_WhenServerReturns500_ShouldThrowException() {
-        stubFor(get(urlPathEqualTo("/latest"))
+        stubFor(get(urlPathEqualTo("/rates"))
                 .withQueryParam("base", equalTo("EUR"))
                 .withQueryParam("quotes", equalTo("BYN"))
                 .willReturn(aResponse()
@@ -114,18 +173,18 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
     }
 
     @Test
-    void getLatestRates_WhenNullRates_ShouldThrowException() {
-        stubFor(get(urlPathEqualTo("/latest"))
+    void getLatestRates_WhenBodyIsNull_ShouldThrowException() {
+        stubFor(get(urlPathEqualTo("/rates"))
                 .withQueryParam("base", equalTo("EUR"))
                 .withQueryParam("quotes", equalTo("BYN"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"base\": \"EUR\", \"date\": \"" + LocalDate.now() + "\", \"rates\": null}")));
+                        .withBody("null")));
 
         assertThatThrownBy(() -> frankfurterClient.getLatestRates(Set.of("BYN")))
                 .isInstanceOf(ExternalApiException.class)
-                .hasMessageContaining("Empty rates received");
+                .hasMessageContaining("Null response received");
     }
 
     @Test
@@ -135,7 +194,7 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
                 .willReturn(aResponse()
                         .withStatus(404)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"error\": \"Not Found\"}")));
+                        .withBody("{\"status\":404,\"message\":\"not found\"}")));
 
         assertThatThrownBy(() -> frankfurterClient.getHistoricalRates(LocalDate.of(2024, 3, 15), Set.of("USD")))
                 .isInstanceOf(ExternalApiException.class)
@@ -146,5 +205,13 @@ class FrankfurterClientIntegrationTest extends BaseWireMockTest {
     void getProviderName_ShouldReturnFrankfurter() {
         assertThat(frankfurterClient.getProviderName()).isEqualTo("Frankfurter");
         assertThat(frankfurterClient.isFallback()).isTrue();
+    }
+
+    private Map<String, String> ratesOf(final String... pairs) {
+        Map<String, String> rates = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            rates.put(pairs[i], pairs[i + 1]);
+        }
+        return rates;
     }
 }

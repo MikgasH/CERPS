@@ -2,7 +2,7 @@ package com.example.cerpshashkin.converter;
 
 import com.example.cerpshashkin.dto.ExchangeRatesApiResponse;
 import com.example.cerpshashkin.dto.FixerioResponse;
-import com.example.cerpshashkin.dto.FrankfurterResponse;
+import com.example.cerpshashkin.dto.FrankfurterRateEntry;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,20 +56,40 @@ public class ExternalApiConverter {
         );
     }
 
-    public CurrencyExchangeResponse convertFromFrankfurter(final FrankfurterResponse frankfurterResponse) {
-        if (frankfurterResponse == null) {
-            throw new IllegalArgumentException(ERROR_NULL_RESPONSE.replace("{}", FrankfurterResponse.class.getSimpleName()));
+    /**
+     * Frankfurter v2 returns a flat array of per-pair entries instead of a
+     * rates object. All entries of one response share the same base and date;
+     * unknown quote currencies are skipped like in the other converters.
+     */
+    public CurrencyExchangeResponse convertFromFrankfurter(final List<FrankfurterRateEntry> entries) {
+        if (entries == null) {
+            throw new IllegalArgumentException(ERROR_NULL_RESPONSE.replace("{}", FrankfurterRateEntry.class.getSimpleName()));
         }
+
+        final Map<Currency, BigDecimal> currencyRates = new HashMap<>();
+        Currency base = null;
+        LocalDate rateDate = null;
+
+        for (final FrankfurterRateEntry entry : entries) {
+            if (entry == null || entry.quote() == null || entry.rate() == null) {
+                continue;
+            }
+            try {
+                currencyRates.put(Currency.getInstance(entry.quote()), entry.rate());
+            } catch (IllegalArgumentException e) {
+                log.debug(DEBUG_UNKNOWN_CURRENCY, PROVIDER_NAME_FRANKFURTER, entry.quote());
+                continue;
+            }
+            if (base == null) {
+                base = entry.base();
+            }
+            if (rateDate == null || (entry.date() != null && entry.date().isAfter(rateDate))) {
+                rateDate = entry.date();
+            }
+        }
+
         // Frankfurter has no success flag or update timestamp — a parsed response is a successful one.
-        return convert(
-                true,
-                Instant.now(),
-                frankfurterResponse.base(),
-                frankfurterResponse.date(),
-                frankfurterResponse.rates(),
-                PROVIDER_NAME_FRANKFURTER,
-                false
-        );
+        return new CurrencyExchangeResponse(true, Instant.now(), base, rateDate, currencyRates, false);
     }
 
     private CurrencyExchangeResponse convert(
