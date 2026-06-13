@@ -2,8 +2,8 @@ package com.example.cerpshashkin.service;
 
 import com.example.cerpshashkin.entity.SupportedCurrencyEntity;
 import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,10 +12,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class SupportedCurrenciesService {
 
     private final SupportedCurrencyRepository supportedCurrencyRepository;
+
+    // Self-reference resolved through the Spring proxy. The Set view must call
+    // getSupportedCurrencyCodes() via this proxy so the @Cacheable advice fires;
+    // a plain this.getSupportedCurrencyCodes() would bypass the proxy and run
+    // findAll() on every invocation (the self-invocation cache trap).
+    private final SupportedCurrenciesService self;
+
+    public SupportedCurrenciesService(final SupportedCurrencyRepository supportedCurrencyRepository,
+                                      @Lazy final SupportedCurrenciesService self) {
+        this.supportedCurrencyRepository = supportedCurrencyRepository;
+        this.self = self;
+    }
 
     @Cacheable("supportedCurrencies")
     @Transactional(readOnly = true)
@@ -28,6 +39,6 @@ public class SupportedCurrenciesService {
     }
 
     public Set<String> getSupportedCurrencyCodesAsSet() {
-        return getSupportedCurrencyCodes().stream().collect(Collectors.toUnmodifiableSet());
+        return self.getSupportedCurrencyCodes().stream().collect(Collectors.toUnmodifiableSet());
     }
 }
