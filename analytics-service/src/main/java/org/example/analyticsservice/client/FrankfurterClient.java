@@ -2,6 +2,7 @@ package org.example.analyticsservice.client;
 
 import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerps.common.exception.ExternalServiceException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -75,6 +76,11 @@ public class FrankfurterClient {
      * upstream" answer (e.g. dates before a currency's history starts) —
      * only a null body or transport/HTTP error is an exception.
      */
+    // Circuit breaker fails fast once Frankfurter is repeatedly unhealthy: an
+    // open breaker raises CallNotPermittedException (not in the retry list, so
+    // not retried), which the trends pipeline catches and routes to the legacy
+    // currency-service fallback instead of hammering a down upstream.
+    @CircuitBreaker(name = "frankfurter")
     @Retry(name = "frankfurter")
     public List<FrankfurterRateEntry> getRates(final Set<String> quotes, final LocalDate from, final LocalDate to) {
         log.info(FETCHING_RANGE_LOG, quotes, from, to);

@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.exception;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -103,6 +104,15 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public ProblemDetail handleExternalApiException(final ExternalApiException ex) {
         return createProblemDetail(HttpStatus.BAD_GATEWAY, "External API error", ex.getMessage());
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ProblemDetail handleCircuitBreakerOpen(final CallNotPermittedException ex) {
+        // An open circuit means a downstream provider is being shielded while it
+        // recovers; surface a transient 503 rather than a generic 500.
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Service temporarily unavailable", "An upstream provider is temporarily unavailable");
     }
 
     @ExceptionHandler(Exception.class)

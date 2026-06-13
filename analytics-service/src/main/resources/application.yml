@@ -92,11 +92,23 @@ resilience4j:
           - com.example.cerps.common.exception.ExternalServiceException
           - org.springframework.web.client.RestClientException
       frankfurter:
+        # Short waits so a request-path backfill failure falls back to the
+        # legacy currency-service source in ~0.6s instead of ~6s (was 2s waits).
         max-attempts: 3
-        wait-duration: 2s
+        wait-duration: 300ms
         retry-exceptions:
           - com.example.cerps.common.exception.ExternalServiceException
           - org.springframework.web.client.RestClientException
+  circuitbreaker:
+    instances:
+      frankfurter:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
 
 cache:
   trends:

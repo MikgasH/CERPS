@@ -4,6 +4,8 @@ import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerps.common.exception.ExternalServiceException;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.example.analyticsservice.client.FrankfurterClient;
 import org.example.analyticsservice.integration.config.TestConfig;
 import org.junit.jupiter.api.AfterEach;
@@ -42,12 +44,18 @@ class FrankfurterClientIntegrationTest {
     @Autowired
     private FrankfurterClient frankfurterClient;
 
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
     private WireMockServer wireMockServer;
 
     @BeforeEach
     void setUp() {
         wireMockServer = new WireMockServer(WIREMOCK_PORT);
         wireMockServer.start();
+        // Reset breaker state so failure-driven tests don't leave it OPEN for
+        // the next test method (the context, hence the breaker, is shared).
+        circuitBreakerRegistry.getAllCircuitBreakers().forEach(CircuitBreaker::reset);
     }
 
     @AfterEach
