@@ -11,8 +11,13 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      # Sized for a single Railway replica serving a cache-backed, read-mostly
+      # workload: requests hit the in-memory rate/currency caches first and DB
+      # queries are short. A small pool avoids exhausting Railway Postgres'
+      # connection limit (which one oversized pool, or any future replica,
+      # could otherwise do). Revisit only alongside the scaling notes in CLAUDE.md.
+      maximum-pool-size: 10
+      minimum-idle: 2
       connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1800000
