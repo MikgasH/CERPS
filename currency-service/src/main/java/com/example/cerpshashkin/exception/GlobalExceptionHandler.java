@@ -25,12 +25,6 @@ public class GlobalExceptionHandler {
         return createProblemDetail(HttpStatus.BAD_REQUEST, "Invalid currency code", ex.getMessage());
     }
 
-    @ExceptionHandler(CurrencyNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ProblemDetail handleCurrencyNotFoundException(final CurrencyNotFoundException ex) {
-        return createProblemDetail(HttpStatus.NOT_FOUND, "Currency not found", ex.getMessage());
-    }
-
     @ExceptionHandler(ProviderKeyNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleProviderKeyNotFoundException(final ProviderKeyNotFoundException ex) {

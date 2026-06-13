@@ -1,7 +1,6 @@
 package com.example.cerpshashkin.unit.exception;
 
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
-import com.example.cerpshashkin.exception.CurrencyNotFoundException;
 import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.exception.ExternalApiException;
@@ -43,29 +42,6 @@ class ExceptionTest {
         assertThat(thrown)
                 .isInstanceOf(InvalidCurrencyException.class)
                 .hasMessageContaining("XXX");
-    }
-
-    @Test
-    void currencyNotFoundException_ShouldContainCurrencyCode() {
-        CurrencyNotFoundException ex = new CurrencyNotFoundException("JPY");
-        assertThat(ex.getMessage()).contains("Currency not found: JPY");
-    }
-
-    @Test
-    void currencyNotFoundException_ShouldExtendRuntimeException() {
-        CurrencyNotFoundException ex = new CurrencyNotFoundException("EUR");
-        assertThat(ex).isInstanceOf(RuntimeException.class);
-    }
-
-    @Test
-    void currencyNotFoundException_ShouldBeThrowable() {
-        Throwable thrown = catchThrowable(() -> {
-            throw new CurrencyNotFoundException("EUR");
-        });
-
-        assertThat(thrown)
-                .isInstanceOf(CurrencyNotFoundException.class)
-                .hasMessageContaining("EUR");
     }
 
     @Test

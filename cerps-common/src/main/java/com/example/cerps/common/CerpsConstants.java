@@ -21,9 +21,6 @@ public final class CerpsConstants {
     public static final String EXCHANGE_RATE_SOURCE_AGGREGATED = "AGGREGATED";
     public static final String EXCHANGE_RATE_SOURCE_FRANKFURTER = "FRANKFURTER";
 
-    // Cache TTL: 8 hours in seconds (matches exchange rate update cycle)
-    public static final long CACHE_TTL_SECONDS = 28800L;
-
     // Rate validation
     public static final long MAX_RATE_VALUE = 1_000_000L;
 
