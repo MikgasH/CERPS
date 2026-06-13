@@ -25,6 +25,12 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // Health stays public for the Railway healthcheck; the
+                        // information-bearing actuator endpoints (prometheus,
+                        // metrics) are not world-readable. The trends API and
+                        // everything else remain public.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**").denyAll()
                         .anyRequest().permitAll()
                 )
                 .sessionManagement(session -> session

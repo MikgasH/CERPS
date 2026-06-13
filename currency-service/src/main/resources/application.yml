@@ -79,7 +79,10 @@ management:
         include: prometheus,health,metrics
   endpoint:
     health:
-      show-details: always
+      # Public callers see only UP/DOWN; component details require ROLE_ADMIN
+      # (X-API-Key), so the healthcheck works without leaking internals.
+      show-details: when_authorized
+      roles: ADMIN
   prometheus:
     metrics:
       export:

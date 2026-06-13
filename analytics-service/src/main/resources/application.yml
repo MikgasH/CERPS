@@ -48,7 +48,9 @@ management:
         include: prometheus,health,metrics
   endpoint:
     health:
-      show-details: always
+      # Public callers see only UP/DOWN; analytics has no admin role binding in
+      # the security chain, so never expose component details.
+      show-details: never
   prometheus:
     metrics:
       export:
