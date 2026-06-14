@@ -20,10 +20,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Verifies the self-invocation cache fix on the real application context:
- * {@code getSupportedCurrencyCodesAsSet()} routes through the {@code @Cacheable}
- * proxy, so the repository is queried at most once across repeated calls
- * (previously it ran {@code findAll()} on every invocation).
+ * Verifies the supported-currency cache on the real application context: both
+ * {@code getSupportedCurrencyCodes()} and {@code getSupportedCurrencyCodesAsSet()}
+ * delegate to the cached {@code CurrencyCodeCacheService} bean, so the repository
+ * is queried at most once across repeated calls (it previously ran
+ * {@code findAll()} on every Set-view invocation).
  */
 @SpringBootTest
 @ActiveProfiles("test")
