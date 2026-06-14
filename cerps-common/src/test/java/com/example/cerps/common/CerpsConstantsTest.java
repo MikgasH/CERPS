@@ -62,6 +62,13 @@ class CerpsConstantsTest {
     }
 
     @Test
+    void multiYearDownsamplingLimits_ShouldCapAtDaily() {
+        // Multi-year periods cap at one point per day, same as 1Y.
+        assertThat(CerpsConstants.MAX_POINTS_2Y).isEqualTo(365);
+        assertThat(CerpsConstants.MAX_POINTS_3Y).isEqualTo(365);
+    }
+
+    @Test
     void downsamplingLimits_ShouldBeOrdered() {
         assertThat(CerpsConstants.MAX_POINTS_1D)
                 .isLessThan(CerpsConstants.MAX_POINTS_7D);

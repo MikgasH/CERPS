@@ -34,4 +34,9 @@ public final class CerpsConstants {
     public static final int MAX_POINTS_90D = 180;
     public static final int MAX_POINTS_180D = 270;
     public static final int MAX_POINTS_1Y = 365;
+    // Multi-year periods cap at one point per day (same as 1Y): the 2-3 year
+    // daily series (~730/~1095 points) is downsampled to 365 server-side; the
+    // Android chart re-runs LTTB on top.
+    public static final int MAX_POINTS_2Y = 365;
+    public static final int MAX_POINTS_3Y = 365;
 }

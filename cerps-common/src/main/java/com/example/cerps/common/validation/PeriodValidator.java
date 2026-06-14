@@ -7,7 +7,8 @@ import java.util.Set;
 
 public class PeriodValidator implements ConstraintValidator<ValidPeriod, String> {
 
-    private static final Set<String> ALLOWED_PERIODS = Set.of("1D", "7D", "30D", "90D", "180D", "1Y");
+    private static final Set<String> ALLOWED_PERIODS =
+            Set.of("1D", "7D", "30D", "90D", "180D", "1Y", "2Y", "3Y");
 
     @Override
     public boolean isValid(final String value, final ConstraintValidatorContext context) {

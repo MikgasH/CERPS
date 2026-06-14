@@ -160,6 +160,16 @@ class TrendsServiceDownsampleTest {
     }
 
     @Test
+    void getMaxPointsForPeriod_2Y_ShouldReturnCappedLimit() {
+        assertThat(invokeGetMaxPointsForPeriod("2Y")).isEqualTo(CerpsConstants.MAX_POINTS_2Y);
+    }
+
+    @Test
+    void getMaxPointsForPeriod_3Y_ShouldReturnCappedLimit() {
+        assertThat(invokeGetMaxPointsForPeriod("3Y")).isEqualTo(CerpsConstants.MAX_POINTS_3Y);
+    }
+
+    @Test
     void getMaxPointsForPeriod_UnknownPeriod_ShouldReturnDefault() {
         assertThat(invokeGetMaxPointsForPeriod("ABC")).isEqualTo(CerpsConstants.MAX_POINTS_180D);
     }

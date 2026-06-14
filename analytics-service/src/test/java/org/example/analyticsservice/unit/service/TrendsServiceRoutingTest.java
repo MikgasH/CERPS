@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -74,7 +75,7 @@ class TrendsServiceRoutingTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"7D", "30D", "90D", "180D", "1Y"})
+    @ValueSource(strings = {"7D", "30D", "90D", "180D", "1Y", "2Y", "3Y"})
     void calculateTrends_ShouldRouteToHistoricalStore_WhenPeriod7DOrLonger(final String period) {
         when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
                 .thenReturn(twoPoints());
@@ -99,6 +100,22 @@ class TrendsServiceRoutingTest {
         verify(historicalRatesService).getRatePoints(eq("USD"), eq("EUR"),
                 startCaptor.capture(), endCaptor.capture());
         assertThat(ChronoUnit.DAYS.between(startCaptor.getValue(), endCaptor.getValue())).isEqualTo(7);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2Y, 2", "3Y, 3"})
+    void calculateTrends_ShouldPassMultiYearWindow_WhenRoutingToHistoricalStore(
+            final String period, final int years) {
+        when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(twoPoints());
+
+        service.calculateTrends(new TrendsRequest("USD", "EUR", period));
+
+        ArgumentCaptor<LocalDate> startCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalDate> endCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        verify(historicalRatesService).getRatePoints(eq("USD"), eq("EUR"),
+                startCaptor.capture(), endCaptor.capture());
+        assertThat(startCaptor.getValue()).isEqualTo(endCaptor.getValue().minusYears(years));
     }
 
     @Test

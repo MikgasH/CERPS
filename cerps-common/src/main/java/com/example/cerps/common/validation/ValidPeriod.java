@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidPeriod {
 
-    String message() default "Invalid period. Allowed values: 1D, 7D, 30D, 90D, 180D, 1Y";
+    String message() default "Invalid period. Allowed values: 1D, 7D, 30D, 90D, 180D, 1Y, 2Y, 3Y";
 
     Class<?>[] groups() default {};
 

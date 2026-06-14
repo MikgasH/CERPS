@@ -278,6 +278,8 @@ public class TrendsService {
             case "90D" -> CerpsConstants.MAX_POINTS_90D;
             case "180D" -> CerpsConstants.MAX_POINTS_180D;
             case "1Y" -> CerpsConstants.MAX_POINTS_1Y;
+            case "2Y" -> CerpsConstants.MAX_POINTS_2Y;
+            case "3Y" -> CerpsConstants.MAX_POINTS_3Y;
             default -> CerpsConstants.MAX_POINTS_180D;
         };
     }

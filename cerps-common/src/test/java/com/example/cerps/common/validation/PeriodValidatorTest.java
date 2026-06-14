@@ -20,13 +20,13 @@ class PeriodValidatorTest {
     // === Valid periods (documented allow-list only) ===
 
     @ParameterizedTest
-    @ValueSource(strings = {"1D", "7D", "30D", "90D", "180D", "1Y"})
+    @ValueSource(strings = {"1D", "7D", "30D", "90D", "180D", "1Y", "2Y", "3Y"})
     void isValid_WithAllowedPeriods_ShouldReturnTrue(String period) {
         assertThat(validator.isValid(period, null)).isTrue();
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1d", "7d", "30d", "90d", "180d", "1y"})
+    @ValueSource(strings = {"1d", "7d", "30d", "90d", "180d", "1y", "2y", "3y"})
     void isValid_WithLowercasePeriods_ShouldReturnTrue(String period) {
         assertThat(validator.isValid(period, null)).isTrue();
     }
@@ -63,7 +63,7 @@ class PeriodValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"2D", "14D", "60D", "365D", "2Y", "10Y"})
+    @ValueSource(strings = {"2D", "14D", "60D", "365D", "4Y", "10Y"})
     void isValid_WithUndocumentedPeriods_ShouldReturnFalse(String period) {
         assertThat(validator.isValid(period, null)).isFalse();
     }
