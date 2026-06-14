@@ -89,26 +89,74 @@ public class HistoricalRateService {
         final List<ExchangeRateEntity> entities = exchangeRateRepository
                 .findLatestPerTargetInWindow(baseCurrencyCode, windowStart, windowEnd);
 
-        if (!entities.isEmpty()) {
-            final Map<String, BigDecimal> rates = entities.stream()
-                    .filter(entity -> supportedCodes.contains(entity.getTargetCurrency().getCurrencyCode()))
-                    .collect(Collectors.toMap(
-                            entity -> entity.getTargetCurrency().getCurrencyCode(),
-                            ExchangeRateEntity::getRate
-                    ));
+        final Map<String, BigDecimal> rates = entities.stream()
+                .filter(entity -> supportedCodes.contains(entity.getTargetCurrency().getCurrencyCode()))
+                .collect(Collectors.toMap(
+                        entity -> entity.getTargetCurrency().getCurrencyCode(),
+                        ExchangeRateEntity::getRate
+                ));
 
-            if (!rates.isEmpty()) {
-                final Instant snapshotTimestamp = entities.stream()
-                        .map(ExchangeRateEntity::getTimestamp)
-                        .max(Comparator.naturalOrder())
-                        .orElse(windowEnd);
-
-                log.info("Historical rates for {} resolved from database - {} rates", date, rates.size());
-                return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_DATABASE, snapshotTimestamp);
-            }
+        if (rates.isEmpty()) {
+            return resolveFromFrankfurter(date, supportedCodes);
         }
 
-        return resolveFromFrankfurter(date, supportedCodes);
+        final Instant snapshotTimestamp = entities.stream()
+                .map(ExchangeRateEntity::getTimestamp)
+                .max(Comparator.naturalOrder())
+                .orElse(windowEnd);
+
+        // Partial DB data (e.g. a currency added after this date never got an
+        // older snapshot) is gap-filled from Frankfurter, mirroring the refresh
+        // Phase 2 fallback, so the response always covers every supported code.
+        fillMissingFromFrankfurter(date, supportedCodes, rates);
+
+        log.info("Historical rates for {} resolved from database - {} rates", date, rates.size());
+        return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_DATABASE, snapshotTimestamp);
+    }
+
+    /**
+     * Supported currencies absent from the database snapshot are fetched from
+     * Frankfurter for the same date and merged into {@code rates} in place. A
+     * failure here must never discard the DB snapshot we already have, so it is
+     * caught and logged — the response then carries the partial set, exactly as
+     * before this gap-fill existed.
+     */
+    private void fillMissingFromFrankfurter(final LocalDate date,
+                                            final Set<String> supportedCodes,
+                                            final Map<String, BigDecimal> rates) {
+        final Set<String> missing = supportedCodes.stream()
+                .filter(code -> !code.equals(baseCurrencyCode))
+                .filter(code -> !rates.containsKey(code))
+                .collect(Collectors.toSet());
+
+        if (missing.isEmpty()) {
+            return;
+        }
+
+        log.info("Historical snapshot for {} missing {} supported currencies, gap-filling from Frankfurter: {}",
+                date, missing.size(), missing);
+
+        try {
+            final CurrencyExchangeResponse response = frankfurterClient.getHistoricalRates(date, missing);
+
+            if (!response.success() || response.rates() == null || response.rates().isEmpty()) {
+                log.warn("Frankfurter gap-fill returned no rates for {} on {}", missing, date);
+                return;
+            }
+
+            response.rates().forEach((currency, rate) -> {
+                final String code = currency.getCurrencyCode();
+                if (missing.contains(code)) {
+                    rates.put(code, rate);
+                }
+            });
+
+            log.info("Historical gap-fill for {} complete - {} rates total", date, rates.size());
+
+        } catch (Exception e) {
+            log.warn("Historical gap-fill from Frankfurter failed for {}, returning partial DB snapshot: {}",
+                    date, e.getMessage());
+        }
     }
 
     private ResolvedSnapshot resolveFromFrankfurter(final LocalDate date, final Set<String> supportedCodes) {

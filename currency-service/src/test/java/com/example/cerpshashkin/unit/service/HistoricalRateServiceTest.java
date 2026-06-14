@@ -86,8 +86,63 @@ class HistoricalRateServiceTest {
     }
 
     @Test
-    void getHistoricalRates_ShouldQueryLookBackWindow_OfFourDays() {
+    void getHistoricalRates_ShouldGapFillMissingCurrencies_WhenDatabasePartial() {
         when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(SUPPORTED);
+        Instant snapshotTime = TEST_DATE.atTime(8, 0).toInstant(ZoneOffset.UTC);
+        // DB only has USD for this date (e.g. PLN was added later) — PLN must be gap-filled.
+        when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
+                .thenReturn(List.of(entity(USD, "1.0834", snapshotTime)));
+        when(frankfurterClient.getHistoricalRates(eq(TEST_DATE), eq(Set.of("PLN"))))
+                .thenReturn(CurrencyExchangeResponse.success(
+                        EUR, TEST_DATE, Map.of(PLN, new BigDecimal("4.2891")), false));
+
+        HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
+
+        // Source stays DATABASE (primary snapshot) but the set is now complete.
+        assertThat(result.source()).isEqualTo("DATABASE");
+        assertThat(result.timestamp()).isEqualTo(snapshotTime);
+        assertThat(result.rates())
+                .containsEntry("USD", new BigDecimal("1.0834"))
+                .containsEntry("PLN", new BigDecimal("4.2891"));
+    }
+
+    @Test
+    void getHistoricalRates_ShouldOnlyGapFillRequestedCurrencies_NotUnsupportedExtras() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(SUPPORTED);
+        Instant snapshotTime = TEST_DATE.atTime(8, 0).toInstant(ZoneOffset.UTC);
+        when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
+                .thenReturn(List.of(entity(USD, "1.0834", snapshotTime)));
+        // Frankfurter returns an unrequested currency too; only PLN should be merged.
+        when(frankfurterClient.getHistoricalRates(eq(TEST_DATE), eq(Set.of("PLN"))))
+                .thenReturn(CurrencyExchangeResponse.success(
+                        EUR, TEST_DATE,
+                        Map.of(PLN, new BigDecimal("4.2891"), Currency.getInstance("GBP"), new BigDecimal("0.85")),
+                        false));
+
+        HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
+
+        assertThat(result.rates()).containsOnlyKeys("USD", "PLN");
+    }
+
+    @Test
+    void getHistoricalRates_ShouldReturnPartialDbSnapshot_WhenGapFillFails() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(SUPPORTED);
+        Instant snapshotTime = TEST_DATE.atTime(8, 0).toInstant(ZoneOffset.UTC);
+        when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
+                .thenReturn(List.of(entity(USD, "1.0834", snapshotTime)));
+        when(frankfurterClient.getHistoricalRates(eq(TEST_DATE), eq(Set.of("PLN"))))
+                .thenThrow(new RuntimeException("Frankfurter unavailable"));
+
+        HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
+
+        // A gap-fill failure must not discard the DB snapshot we already resolved.
+        assertThat(result.source()).isEqualTo("DATABASE");
+        assertThat(result.rates()).containsOnlyKeys("USD");
+    }
+
+    @Test
+    void getHistoricalRates_ShouldQueryLookBackWindow_OfFourDays() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(Set.of("EUR", "USD"));
         Instant weekendSnapshot = TEST_DATE.minusDays(2).atTime(16, 0).toInstant(ZoneOffset.UTC);
         when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
                 .thenReturn(List.of(entity(USD, "1.08", weekendSnapshot)));
