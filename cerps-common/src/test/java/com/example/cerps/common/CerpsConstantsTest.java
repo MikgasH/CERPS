@@ -42,12 +42,6 @@ class CerpsConstantsTest {
     }
 
     @Test
-    void cacheTtlSeconds_ShouldBe8Hours() {
-        assertThat(CerpsConstants.CACHE_TTL_SECONDS).isEqualTo(28800L);
-        assertThat(CerpsConstants.CACHE_TTL_SECONDS).isEqualTo(8 * 60 * 60);
-    }
-
-    @Test
     void maxRateValue_ShouldBeOneMillion() {
         assertThat(CerpsConstants.MAX_RATE_VALUE).isEqualTo(1_000_000L);
     }

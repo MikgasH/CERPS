@@ -6,6 +6,8 @@ import com.example.cerpshashkin.repository.SupportedCurrencyRepository;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,6 +60,9 @@ public abstract class BaseWireMockTest {
     @Autowired
     private SupportedCurrencyRepository supportedCurrencyRepository;
 
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
     private static boolean dataInitialized = false;
 
     @BeforeEach
@@ -66,6 +71,10 @@ public abstract class BaseWireMockTest {
             setupCurrencies();
             dataInitialized = true;
         }
+        // The Spring context (and its circuit breakers) is shared across all
+        // BaseWireMockTest subclasses; reset breaker state so failure-driven
+        // tests never leak an OPEN breaker into the next test or class.
+        circuitBreakerRegistry.getAllCircuitBreakers().forEach(CircuitBreaker::reset);
         resetWireMock();
     }
 

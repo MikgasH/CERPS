@@ -30,6 +30,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -80,6 +83,12 @@ public class HistoricalRatesService {
     private final HistoricalCoverageRepository historicalCoverageRepository;
     private final TransactionTemplate transactionTemplate;
     private final MeterRegistry meterRegistry;
+
+    // Single-flight coalescing per currency: concurrent first-requests for the
+    // same currency share one backfill instead of each firing its own
+    // Frankfurter call. The key space is the supported-currency set (small,
+    // fixed), so the map needs no eviction.
+    private final ConcurrentHashMap<Currency, Lock> backfillLocks = new ConcurrentHashMap<>();
 
     private Counter fetchHitCounter;
     private Counter fetchMissCounter;
@@ -143,40 +152,51 @@ public class HistoricalRatesService {
             return false;
         }
 
-        final HistoricalCoverage coverage = historicalCoverageRepository.findById(currency).orElse(null);
-        final List<DateRange> missingRanges = missingRanges(coverage, startDate, fetchEnd);
-        if (missingRanges.isEmpty()) {
-            return false;
-        }
-
-        log.info(BACKFILL_LOG, currency, missingRanges);
-
-        // The HTTP calls happen strictly before (and outside) the
-        // transactional write - never hold a transaction open across them.
-        final List<FrankfurterRateEntry> entries = new ArrayList<>();
-        for (final DateRange range : missingRanges) {
-            entries.addAll(frankfurterClient.getRates(
-                    Set.of(currency.getCurrencyCode()), range.from(), range.to()));
-        }
-
-        final LocalDate fetchedFrom = missingRanges.getFirst().from();
-        final LocalDate fetchedTo = missingRanges.getLast().to();
+        // Coalesce concurrent backfills for this currency. The first thread
+        // fetches and extends coverage; threads that were waiting then re-read
+        // coverage below, find the window already covered, and skip the call.
+        // The DB unique-violation handling stays as a second line of defence
+        // for races across separate instances (the lock is per-instance).
+        final Lock lock = backfillLocks.computeIfAbsent(currency, c -> new ReentrantLock());
+        lock.lock();
         try {
-            storeFetchedRange(currency, coverage, entries, fetchedFrom, fetchedTo, today);
-        } catch (DataIntegrityViolationException firstRace) {
-            // Two simultaneous first-requests racing on the same currency:
-            // the loser hits uq_hist_rate (or the coverage PK). Benign -
-            // re-read what the winner stored and insert only what is missing.
-            log.info(RACE_RETRY_LOG, currency, firstRace.getMessage());
-            try {
-                storeFetchedRange(currency,
-                        historicalCoverageRepository.findById(currency).orElse(null),
-                        entries, fetchedFrom, fetchedTo, today);
-            } catch (DataIntegrityViolationException secondRace) {
-                log.warn(RACE_GIVE_UP_LOG, currency, secondRace.getMessage());
+            final HistoricalCoverage coverage = historicalCoverageRepository.findById(currency).orElse(null);
+            final List<DateRange> missingRanges = missingRanges(coverage, startDate, fetchEnd);
+            if (missingRanges.isEmpty()) {
+                return false;
             }
+
+            log.info(BACKFILL_LOG, currency, missingRanges);
+
+            // The HTTP calls happen strictly before (and outside) the
+            // transactional write - never hold a transaction open across them.
+            final List<FrankfurterRateEntry> entries = new ArrayList<>();
+            for (final DateRange range : missingRanges) {
+                entries.addAll(frankfurterClient.getRates(
+                        Set.of(currency.getCurrencyCode()), range.from(), range.to()));
+            }
+
+            final LocalDate fetchedFrom = missingRanges.getFirst().from();
+            final LocalDate fetchedTo = missingRanges.getLast().to();
+            try {
+                storeFetchedRange(currency, coverage, entries, fetchedFrom, fetchedTo, today);
+            } catch (DataIntegrityViolationException firstRace) {
+                // Two simultaneous first-requests racing on the same currency:
+                // the loser hits uq_hist_rate (or the coverage PK). Benign -
+                // re-read what the winner stored and insert only what is missing.
+                log.info(RACE_RETRY_LOG, currency, firstRace.getMessage());
+                try {
+                    storeFetchedRange(currency,
+                            historicalCoverageRepository.findById(currency).orElse(null),
+                            entries, fetchedFrom, fetchedTo, today);
+                } catch (DataIntegrityViolationException secondRace) {
+                    log.warn(RACE_GIVE_UP_LOG, currency, secondRace.getMessage());
+                }
+            }
+            return true;
+        } finally {
+            lock.unlock();
         }
-        return true;
     }
 
     /**

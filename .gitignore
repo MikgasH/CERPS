@@ -43,6 +43,7 @@ build/
 
 ### Local AI context documentation (not project code) ###
 context-ai/
+CLAUDE.md
 
 ### Docker ###
 docker-compose.override.yml

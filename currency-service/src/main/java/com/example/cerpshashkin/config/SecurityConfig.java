@@ -24,11 +24,18 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-resources/**",
             "/webjars/**",
-            "/actuator/**",
             "/api/v1/currencies/**",
             "/api/v1/rates/**",
             "/api/v1/rates/historical",
             "/api/v1/ai/**"
+    };
+
+    // Liveness/readiness must stay public for the Railway healthcheck; the
+    // information-bearing actuator endpoints (prometheus, metrics, env, ...)
+    // are admin-only rather than world-readable.
+    private static final String[] PUBLIC_ACTUATOR_ENDPOINTS = {
+            "/actuator/health",
+            "/actuator/health/**"
     };
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
@@ -41,6 +48,8 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_ACTUATOR_ENDPOINTS).permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().denyAll()

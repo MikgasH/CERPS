@@ -11,8 +11,13 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      # Sized for a single Railway replica serving a cache-backed, read-mostly
+      # workload: requests hit the in-memory rate/currency caches first and DB
+      # queries are short. A small pool avoids exhausting Railway Postgres'
+      # connection limit (which one oversized pool, or any future replica,
+      # could otherwise do). Revisit only alongside the scaling notes in CLAUDE.md.
+      maximum-pool-size: 10
+      minimum-idle: 2
       connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1800000
@@ -74,7 +79,10 @@ management:
         include: prometheus,health,metrics
   endpoint:
     health:
-      show-details: always
+      # Public callers see only UP/DOWN; component details require ROLE_ADMIN
+      # (X-API-Key), so the healthcheck works without leaking internals.
+      show-details: when_authorized
+      roles: ADMIN
   prometheus:
     metrics:
       export:
@@ -121,5 +129,21 @@ resilience4j:
         max-attempts: 3
         wait-duration: 2s
       frankfurterClient:
+        # Short waits so the /rates/historical request path gives up in ~0.6s
+        # rather than ~6s (was 2s waits). Only the listed transient failures are
+        # retried, so an open-circuit CallNotPermittedException fails fast.
         max-attempts: 3
-        wait-duration: 2s
+        wait-duration: 300ms
+        retry-exceptions:
+          - com.example.cerpshashkin.exception.ExternalApiException
+          - org.springframework.web.client.RestClientException
+  circuitbreaker:
+    instances:
+      frankfurterClient:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true

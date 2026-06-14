@@ -29,6 +29,11 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -218,6 +223,56 @@ class HistoricalRatesServiceTest {
         verify(coverageRepository).saveAndFlush(any());
         assertThat(counterValue("miss")).isEqualTo(1.0);
         assertThat(counterValue("error")).isZero();
+    }
+
+    @Test
+    void getRatePoints_ShouldCoalesceConcurrentBackfills_IntoOneFrankfurterCall() throws Exception {
+        final LocalDate start = today.minusDays(7);
+        final LocalDate end = today.minusDays(1);
+        final List<FrankfurterRateEntry> entries = dailyEntries("USD", "1.10", start, end);
+        final List<HistoricalRate> rows = rowsFor(entries);
+
+        // Stateful coverage: empty until the winning thread stores it, covered
+        // afterwards - so a serialized second thread sees a satisfied window.
+        final AtomicReference<HistoricalCoverage> stored = new AtomicReference<>();
+        when(coverageRepository.findById(USD))
+                .thenAnswer(inv -> Optional.ofNullable(stored.get()));
+        when(coverageRepository.saveAndFlush(any())).thenAnswer(inv -> {
+            stored.set(inv.getArgument(0));
+            return inv.getArgument(0);
+        });
+
+        // A small delay widens the race window: without the per-currency lock
+        // both threads would observe empty coverage and both call Frankfurter.
+        when(frankfurterClient.getRates(Set.of("USD"), start, end)).thenAnswer(inv -> {
+            Thread.sleep(150);
+            return entries;
+        });
+        when(rateRepository.findByBaseCurrencyAndTargetCurrencyInAndRateDateBetweenOrderByRateDate(
+                EUR, List.of(USD), start, end))
+                .thenReturn(List.of())
+                .thenReturn(rows);
+
+        final int threads = 4;
+        final ExecutorService executor = Executors.newFixedThreadPool(threads);
+        final CyclicBarrier barrier = new CyclicBarrier(threads);
+        final List<Future<List<RatePoint>>> futures = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                return service.getRatePoints("USD", "EUR", start, end);
+            }));
+        }
+        for (final Future<List<RatePoint>> future : futures) {
+            assertThat(future.get()).hasSize(7);
+        }
+        executor.shutdown();
+
+        // Single-flight: exactly one backfill despite concurrent first-requests.
+        verify(frankfurterClient, times(1)).getRates(any(), any(), any());
+        verify(rateRepository, times(1)).saveAllAndFlush(anyList());
+        assertThat(counterValue("miss")).isEqualTo(1.0);
+        assertThat(counterValue("hit")).isEqualTo(threads - 1.0);
     }
 
     @Test

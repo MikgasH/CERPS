@@ -38,17 +38,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleCurrencyNotFoundException_ShouldReturnNotFound() {
-        CurrencyNotFoundException ex = new CurrencyNotFoundException("ZZZ");
-
-        ProblemDetail response = handler.handleCurrencyNotFoundException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
-        assertThat(response.getTitle()).isEqualTo("Currency not found");
-        assertThat(response.getDetail()).contains("ZZZ");
-    }
-
-    @Test
     void handleProviderKeyNotFoundException_ShouldReturnNotFound() {
         ProviderKeyNotFoundException ex = new ProviderKeyNotFoundException(1L);
 

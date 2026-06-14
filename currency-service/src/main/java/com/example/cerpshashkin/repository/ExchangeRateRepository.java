@@ -8,7 +8,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
-import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,26 +80,6 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             @Param("toCurrency") String toCurrency,
             @Param("baseCurrency") String baseCurrency,
             @Param("maxAge") Instant maxAge
-    );
-
-    Optional<ExchangeRateEntity> findFirstByBaseCurrencyAndTargetCurrencyOrderByTimestampDesc(
-            Currency baseCurrency,
-            Currency targetCurrency
-    );
-
-    @Query("""
-            SELECT e FROM ExchangeRateEntity e
-            WHERE e.baseCurrency = :baseCurrency
-              AND e.targetCurrency = :targetCurrency
-              AND e.timestamp >= :startDate
-              AND e.timestamp <= :endDate
-            ORDER BY e.timestamp ASC
-            """)
-    List<ExchangeRateEntity> findRatesForPeriod(
-            @Param("baseCurrency") Currency baseCurrency,
-            @Param("targetCurrency") Currency targetCurrency,
-            @Param("startDate") Instant startDate,
-            @Param("endDate") Instant endDate
     );
 
     @Modifying

@@ -6,6 +6,7 @@ import com.example.cerpshashkin.client.ExchangeRateClient;
 import com.example.cerpshashkin.converter.ExternalApiConverter;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -73,6 +74,7 @@ public class FrankfurterClient implements ExchangeRateClient {
     }
 
     @Override
+    @CircuitBreaker(name = "frankfurterClient")
     @Retry(name = "frankfurterClient")
     public CurrencyExchangeResponse getLatestRates(final Set<String> symbols) {
         log.info(FETCHING_LATEST_LOG, getProviderName());
@@ -99,6 +101,11 @@ public class FrankfurterClient implements ExchangeRateClient {
         return converter.convertFromFrankfurter(fresh);
     }
 
+    // Shares the "frankfurterClient" breaker with getLatestRates, so scheduler
+    // gap-fill failures and historical-endpoint failures aggregate. When open,
+    // CallNotPermittedException is raised; the scheduler path swallows it and
+    // the /rates/historical path maps it to 503 (see GlobalExceptionHandler).
+    @CircuitBreaker(name = "frankfurterClient")
     @Retry(name = "frankfurterClient")
     public CurrencyExchangeResponse getHistoricalRates(final LocalDate date, final Set<String> symbols) {
         log.info(FETCHING_HISTORICAL_LOG, getProviderName(), date);
