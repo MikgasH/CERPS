@@ -254,6 +254,26 @@ class HistoricalRateServiceTest {
     }
 
     @Test
+    void getHistoricalRates_WithHighDenominationBase_ShouldRoundOnlyFinalResultToOutputScale() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("EUR", "USD", "UZS"));
+        Instant snapshotTime = TEST_DATE.atTime(8, 0).toInstant(ZoneOffset.UTC);
+        when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
+                .thenReturn(List.of(
+                        entity(USD, "1.08", snapshotTime),
+                        entity(Currency.getInstance("UZS"), "13800", snapshotTime)
+                ));
+
+        HistoricalRatesResponse result = historicalRateService.getHistoricalRates("UZS", TEST_DATE);
+
+        // Computed at the intermediate scale (1/13800 = 0.000072463768...,
+        // 1.08/13800 = 0.000078260870...), rounded to the 6-decimal output contract
+        assertThat(result.rates().get("EUR")).isEqualByComparingTo(new BigDecimal("0.000072"));
+        assertThat(result.rates().get("USD")).isEqualByComparingTo(new BigDecimal("0.000078"));
+        assertThat(result.rates().get("EUR").scale()).isEqualTo(6);
+    }
+
+    @Test
     void getHistoricalRates_WithNonEurBase_ShouldThrowNotFound_WhenBaseRateMissing() {
         when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(SUPPORTED);
         Instant snapshotTime = TEST_DATE.atTime(8, 0).toInstant(ZoneOffset.UTC);

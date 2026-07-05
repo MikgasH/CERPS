@@ -51,8 +51,10 @@ class ExchangeRateServiceUnitTest {
     private static final Currency USD = Currency.getInstance("USD");
     private static final Currency GBP = Currency.getInstance("GBP");
     private static final Currency JPY = Currency.getInstance("JPY");
+    private static final Currency UZS = Currency.getInstance("UZS");
     private static final LocalDate TEST_DATE = LocalDate.of(2025, 10, 1);
     private static final int SCALE = 6;
+    private static final int INTERMEDIATE_SCALE = 12;
 
     @Mock
     private ExchangeRateProviderService providerService;
@@ -251,7 +253,7 @@ class ExchangeRateServiceUnitTest {
 
         Optional<BigDecimal> result = exchangeRateService.getExchangeRate(USD, EUR);
 
-        BigDecimal expectedInverse = BigDecimal.ONE.divide(eurToUsd, SCALE, RoundingMode.HALF_UP);
+        BigDecimal expectedInverse = BigDecimal.ONE.divide(eurToUsd, INTERMEDIATE_SCALE, RoundingMode.HALF_UP);
         assertThat(result).isPresent();
         assertThat(result.get()).isEqualByComparingTo(expectedInverse);
         verifyNoInteractions(providerService);
@@ -271,11 +273,63 @@ class ExchangeRateServiceUnitTest {
         Optional<BigDecimal> result = exchangeRateService.getExchangeRate(USD, GBP);
 
         BigDecimal expectedCrossRate = BigDecimal.valueOf(0.87)
-                .divide(BigDecimal.valueOf(1.18), SCALE, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(1.18), INTERMEDIATE_SCALE, RoundingMode.HALF_UP);
         assertThat(result).isPresent();
         assertThat(result.get()).isEqualByComparingTo(expectedCrossRate);
         verifyNoInteractions(providerService);
         verifyNoInteractions(exchangeRateRepository);
+    }
+
+    @Test
+    void getExchangeRate_WithHighDenominationInverseInCache_ShouldRetainSignificantDigits() {
+        // At the old CALCULATION_SCALE (6), 1/13800 collapsed to 0.000072 - two
+        // significant digits, a ~0.64% error. Manually computed at scale 12:
+        // 1/13800 = 0.0000724637681159... -> 0.000072463768
+        CachedRate eurToUzs = new CachedRate(new BigDecimal("13800"), Instant.now());
+
+        when(cache.getRate(UZS, EUR)).thenReturn(Optional.empty());
+        when(cache.getRate(EUR, UZS)).thenReturn(Optional.of(eurToUzs));
+
+        Optional<BigDecimal> result = exchangeRateService.getExchangeRate(UZS, EUR);
+
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualByComparingTo(new BigDecimal("0.000072463768"));
+    }
+
+    @Test
+    void getExchangeRate_WithHighDenominationCrossRateInCache_ShouldRetainSignificantDigits() {
+        CachedRate eurToUzs = new CachedRate(new BigDecimal("13800"), Instant.now());
+        CachedRate eurToUsd = new CachedRate(new BigDecimal("1.08"), Instant.now());
+
+        when(cache.getRate(UZS, USD)).thenReturn(Optional.empty());
+        when(cache.getRate(USD, UZS)).thenReturn(Optional.empty());
+        when(cache.getRate(EUR, UZS)).thenReturn(Optional.of(eurToUzs));
+        when(cache.getRate(EUR, USD)).thenReturn(Optional.of(eurToUsd));
+
+        Optional<BigDecimal> result = exchangeRateService.getExchangeRate(UZS, USD);
+
+        // 1.08/13800 = 0.0000782608695652... -> 0.000078260870 at scale 12
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualByComparingTo(new BigDecimal("0.000078260870"));
+    }
+
+    @Test
+    void getAllRatesForBase_WithHighDenominationBase_ShouldRoundOnlyFinalResultToOutputScale() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("EUR", "USD", "UZS"));
+        when(exchangeRateRepository.findAllLatestByBaseCurrency(eq("EUR"), any(Instant.class)))
+                .thenReturn(List.of(
+                        rateEntity(USD, new BigDecimal("1.08")),
+                        rateEntity(UZS, new BigDecimal("13800"))
+                ));
+
+        CurrentRatesResponse response = exchangeRateService.getAllRatesForBase("UZS");
+
+        // Published rates keep the 6-decimal output contract
+        assertThat(response.rates().get("EUR")).isEqualByComparingTo(new BigDecimal("0.000072"));
+        assertThat(response.rates().get("USD")).isEqualByComparingTo(new BigDecimal("0.000078"));
+        assertThat(response.rates().get("EUR").scale()).isEqualTo(SCALE);
+        assertThat(response.rates().get("USD").scale()).isEqualTo(SCALE);
     }
 
     @Test

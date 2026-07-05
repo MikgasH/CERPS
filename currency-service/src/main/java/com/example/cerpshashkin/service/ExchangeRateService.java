@@ -110,10 +110,14 @@ public class ExchangeRateService {
                     .collect(Collectors.toMap(
                             code -> code,
                             code -> {
-                                if (code.equals(baseCurrencyCode)) {
-                                    return BigDecimal.ONE.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
-                                }
-                                return eurBasedRates.get(code).divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
+                                final BigDecimal eurRate = code.equals(baseCurrencyCode)
+                                        ? BigDecimal.ONE
+                                        : eurBasedRates.get(code);
+                                return eurRate
+                                        .divide(baseRate,
+                                                CerpsConstants.INTERMEDIATE_CALCULATION_SCALE,
+                                                RoundingMode.HALF_UP)
+                                        .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                             }
                     ));
         }
@@ -259,8 +263,13 @@ public class ExchangeRateService {
             return direct;
         }
 
+        // Derived rates stay at the intermediate scale: they feed further
+        // calculation (amount x rate), and the SQL fallback (findBestRate)
+        // returns its inverse/cross rates unrounded — rounding to
+        // CALCULATION_SCALE here would make the two paths disagree.
         final Optional<BigDecimal> inverse = cache.getRate(to, from)
-                .map(cached -> BigDecimal.ONE.divide(cached.rate(), CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
+                .map(cached -> BigDecimal.ONE.divide(cached.rate(),
+                        CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP));
 
         if (inverse.isPresent()) {
             return inverse;
@@ -272,7 +281,8 @@ public class ExchangeRateService {
 
         if (fromRate.isPresent() && toRate.isPresent()) {
             return Optional.of(toRate.get().rate()
-                    .divide(fromRate.get().rate(), CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
+                    .divide(fromRate.get().rate(),
+                            CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP));
         }
 
         return Optional.empty();
@@ -327,14 +337,18 @@ public class ExchangeRateService {
             return Optional.ofNullable(rates.get(to));
         }
 
+        // Same contract as getFromCache: derived rates keep the intermediate
+        // scale, the final converted amount is what gets rounded.
         if (to.equals(base)) {
             return Optional.ofNullable(rates.get(from))
-                    .map(rate -> BigDecimal.ONE.divide(rate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
+                    .map(rate -> BigDecimal.ONE.divide(rate,
+                            CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP));
         }
 
         return Optional.ofNullable(rates.get(from))
                 .flatMap(fromRate -> Optional.ofNullable(rates.get(to))
-                        .map(toRate -> toRate.divide(fromRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP))
+                        .map(toRate -> toRate.divide(fromRate,
+                                CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP))
                 );
     }
 

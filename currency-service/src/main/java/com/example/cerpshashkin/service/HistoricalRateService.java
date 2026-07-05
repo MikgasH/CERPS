@@ -200,17 +200,25 @@ public class HistoricalRateService {
         }
 
         final Map<String, BigDecimal> crossRates = new HashMap<>();
-        crossRates.put(baseCurrencyCode,
-                BigDecimal.ONE.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
+        crossRates.put(baseCurrencyCode, crossRate(BigDecimal.ONE, baseRate));
 
         eurRates.forEach((code, rate) -> {
             if (!code.equals(base) && supportedCodes.contains(code)) {
-                crossRates.put(code,
-                        rate.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP));
+                crossRates.put(code, crossRate(rate, baseRate));
             }
         });
 
         return crossRates;
+    }
+
+    /**
+     * Divides at the intermediate scale and rounds only the published rate to
+     * CALCULATION_SCALE, so no significant digits are lost mid-calculation.
+     */
+    private static BigDecimal crossRate(final BigDecimal eurRate, final BigDecimal baseRate) {
+        return eurRate
+                .divide(baseRate, CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP)
+                .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
     }
 
     private record ResolvedSnapshot(Map<String, BigDecimal> eurRates, String source, Instant timestamp) {

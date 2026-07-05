@@ -322,7 +322,10 @@ public class HistoricalRatesService {
             final BigDecimal eurToTarget = toSeries.getOrDefault(date, IDENTITY_RATE);
             final BigDecimal eurToSource = fromSeries.getOrDefault(date, IDENTITY_RATE);
             points.add(new RatePoint(atEcbFixing(date),
-                    eurToTarget.divide(eurToSource, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP)));
+                    eurToTarget
+                            .divide(eurToSource,
+                                    CerpsConstants.INTERMEDIATE_CALCULATION_SCALE, RoundingMode.HALF_UP)
+                            .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP)));
         }
         return points;
     }

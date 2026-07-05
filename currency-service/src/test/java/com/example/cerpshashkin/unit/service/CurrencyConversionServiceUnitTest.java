@@ -91,11 +91,35 @@ class CurrencyConversionServiceUnitTest {
 
         assertThat(result.originalAmount()).isEqualTo(new BigDecimal("100"));
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("85.000000"));
-        assertThat(result.exchangeRate()).isEqualTo(new BigDecimal("0.85"));
+        assertThat(result.exchangeRate()).isEqualTo(new BigDecimal("0.850000"));
         assertThat(result.fromCurrency()).isEqualTo("USD");
         assertThat(result.toCurrency()).isEqualTo("EUR");
 
         verify(exchangeRateService).getExchangeRate(Currency.getInstance("USD"), Currency.getInstance("EUR"));
+    }
+
+    @Test
+    void convertCurrency_WithHighDenominationInverseRate_ShouldPreservePrecisionInAmount() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodes())
+                .thenReturn(List.of("EUR", "UZS"));
+
+        final ConversionRequest request = ConversionRequest.builder()
+                .amount(new BigDecimal("1000000"))
+                .from("UZS")
+                .to("EUR")
+                .build();
+
+        // Inverse rate as produced by the cache path at the intermediate scale;
+        // before the A2 fix it arrived as 0.000072 and yielded 72.000000 EUR.
+        when(exchangeRateService.getExchangeRate(Currency.getInstance("UZS"), Currency.getInstance("EUR")))
+                .thenReturn(Optional.of(new BigDecimal("0.000072463768")));
+
+        final ConversionResponse result = conversionService.convertCurrency(request);
+
+        // Amount computed from the intermediate-scale rate, published rate
+        // rounded back to the 6-decimal API contract as the last step
+        assertThat(result.convertedAmount()).isEqualByComparingTo(new BigDecimal("72.463768"));
+        assertThat(result.exchangeRate()).isEqualTo(new BigDecimal("0.000072"));
     }
 
     @Test
@@ -236,7 +260,7 @@ class CurrencyConversionServiceUnitTest {
 
 
         assertThat(result.convertedAmount()).isEqualTo(new BigDecimal("100.000000"));
-        assertThat(result.exchangeRate()).isEqualTo(BigDecimal.ONE);
+        assertThat(result.exchangeRate()).isEqualTo(new BigDecimal("1.000000"));
     }
 
     @Test

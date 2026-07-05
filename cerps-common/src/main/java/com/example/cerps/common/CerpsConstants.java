@@ -7,6 +7,11 @@ public final class CerpsConstants {
 
     // BigDecimal scales
     public static final int CALCULATION_SCALE = 6;
+    // Reciprocals/cross-rates must be computed at this scale and rounded to
+    // CALCULATION_SCALE only in the final result: at scale 6 the inverse of a
+    // high-denomination rate (e.g. 1/13800 = 0.000072) keeps just 2 significant
+    // digits and diverges from the SQL-side inverse computed at full precision.
+    public static final int INTERMEDIATE_CALCULATION_SCALE = 12;
     public static final int DISPLAY_SCALE = 2;
 
     // Correlation ID

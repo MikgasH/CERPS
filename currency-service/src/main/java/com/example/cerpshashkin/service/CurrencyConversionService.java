@@ -105,15 +105,20 @@ public class CurrencyConversionService {
                 .multiply(rate)
                 .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
 
+        // The rate arrives at the intermediate scale (cache/provider paths) or
+        // unrounded (SQL path); the amount is computed from it at full precision,
+        // but the published field keeps the 6-decimal API contract.
+        final BigDecimal publishedRate = rate.setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
+
         log.info(LOG_CONVERSION_SUCCESS,
-                request.amount(), request.from(), convertedAmount, request.to(), rate);
+                request.amount(), request.from(), convertedAmount, request.to(), publishedRate);
 
         return ConversionResponse.success(
                 request.amount(),
                 request.from(),
                 request.to(),
                 convertedAmount,
-                rate
+                publishedRate
         );
     }
 
