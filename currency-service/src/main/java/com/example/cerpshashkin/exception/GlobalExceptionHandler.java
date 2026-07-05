@@ -5,10 +5,6 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -130,36 +126,6 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Currency Not Supported", ex.getMessage()
         );
-    }
-
-    @ExceptionHandler(InsufficientDataException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleInsufficientDataException(final InsufficientDataException ex) {
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Insufficient data", ex.getMessage());
-    }
-
-    @ExceptionHandler(BadCredentialsException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ProblemDetail handleBadCredentialsException(final BadCredentialsException ex) {
-        return createProblemDetail(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid username or password");
-    }
-
-    @ExceptionHandler(DisabledException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ProblemDetail handleDisabledException(final DisabledException ex) {
-        return createProblemDetail(HttpStatus.UNAUTHORIZED, "Account disabled", "User account is disabled");
-    }
-
-    @ExceptionHandler(UsernameNotFoundException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ProblemDetail handleUsernameNotFoundException(final UsernameNotFoundException ex) {
-        return createProblemDetail(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid username or password");
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ProblemDetail handleAccessDeniedException(final AccessDeniedException ex) {
-        return createProblemDetail(HttpStatus.FORBIDDEN, "Access denied", "You don't have permission to access this resource");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

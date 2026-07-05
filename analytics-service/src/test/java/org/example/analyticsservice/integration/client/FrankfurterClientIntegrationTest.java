@@ -4,6 +4,7 @@ import com.example.cerps.common.dto.FrankfurterRateEntry;
 import com.example.cerps.common.exception.ExternalServiceException;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.example.analyticsservice.client.FrankfurterClient;
@@ -156,6 +157,35 @@ class FrankfurterClientIntegrationTest {
 
         assertThat(entries).hasSize(6);
         wireMockServer.verify(2, getRequestedFor(urlPathEqualTo("/rates")));
+    }
+
+    @Test
+    void getRates_ShouldShortCircuitWithoutHttpCall_WhenCircuitBreakerOpens() {
+        wireMockServer.stubFor(get(urlPathEqualTo("/rates"))
+                .willReturn(aResponse()
+                        .withStatus(500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(readJsonFile("error-500-response.json"))));
+
+        final CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker("frankfurter");
+
+        // Retry wraps the breaker, so every attempt (3 per call) is recorded;
+        // 5 recorded failures reach minimum-number-of-calls at 100% failure rate.
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> frankfurterClient.getRates(
+                    Set.of("USD"), LocalDate.of(2026, 3, 2), LocalDate.of(2026, 3, 4)))
+                    .isInstanceOf(Exception.class);
+        }
+
+        assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+        wireMockServer.resetRequests();
+
+        assertThatThrownBy(() -> frankfurterClient.getRates(
+                Set.of("USD"), LocalDate.of(2026, 3, 2), LocalDate.of(2026, 3, 4)))
+                .isInstanceOf(CallNotPermittedException.class);
+
+        wireMockServer.verify(0, getRequestedFor(urlPathEqualTo("/rates")));
     }
 
     private String readJsonFile(final String fileName) {

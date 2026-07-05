@@ -4,7 +4,6 @@ import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.exception.CurrencyNotSupportedException;
 import com.example.cerpshashkin.exception.ExchangeRateNotAvailableException;
 import com.example.cerpshashkin.exception.ExternalApiException;
-import com.example.cerpshashkin.exception.InsufficientDataException;
 import com.example.cerpshashkin.exception.InvalidCurrencyException;
 import com.example.cerpshashkin.exception.RateNotAvailableException;
 import org.junit.jupiter.api.Test;
@@ -226,42 +225,5 @@ class ExceptionTest {
         assertThat(thrown)
                 .isInstanceOf(CurrencyNotSupportedException.class)
                 .hasMessageContaining("XYZ");
-    }
-
-    @Test
-    void insufficientDataException_ShouldContainMessage() {
-        InsufficientDataException ex = new InsufficientDataException(
-                "Insufficient data for trend analysis. Found 0 data points, need at least 2"
-        );
-
-        assertThat(ex.getMessage())
-                .contains("Insufficient data")
-                .contains("Found 0 data points")
-                .contains("need at least 2");
-    }
-
-    @Test
-    void insufficientDataException_ShouldExtendRuntimeException() {
-        InsufficientDataException ex = new InsufficientDataException("Not enough data");
-        assertThat(ex).isInstanceOf(RuntimeException.class);
-    }
-
-    @Test
-    void insufficientDataException_ShouldBeThrowable() {
-        Throwable thrown = catchThrowable(() -> {
-            throw new InsufficientDataException("Insufficient data for analysis");
-        });
-
-        assertThat(thrown)
-                .isInstanceOf(InsufficientDataException.class)
-                .hasMessageContaining("Insufficient data");
-    }
-
-    @Test
-    void insufficientDataException_WithCustomMessage_ShouldWork() {
-        String customMessage = "Need at least 5 points, found 2";
-        InsufficientDataException ex = new InsufficientDataException(customMessage);
-
-        assertThat(ex.getMessage()).isEqualTo(customMessage);
     }
 }

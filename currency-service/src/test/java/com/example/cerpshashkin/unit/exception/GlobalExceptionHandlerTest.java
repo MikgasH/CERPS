@@ -6,10 +6,6 @@ import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -98,16 +94,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleInsufficientDataException_ShouldReturnBadRequest() {
-        InsufficientDataException ex = new InsufficientDataException("Not enough data points");
-
-        ProblemDetail response = handler.handleInsufficientDataException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(response.getTitle()).isEqualTo("Insufficient data");
-    }
-
-    @Test
     void handleExternalApiException_ShouldReturnBadGateway() {
         ExternalApiException ex = new ExternalApiException("fetch rates", "Fixer.io", "Connection timeout");
 
@@ -157,50 +143,6 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(response.getTitle()).isEqualTo("Missing required parameter");
         assertThat(response.getDetail()).contains("amount");
-    }
-
-    @Test
-    void handleBadCredentialsException_ShouldReturnUnauthorized() {
-        BadCredentialsException ex = new BadCredentialsException("Bad credentials");
-
-        ProblemDetail response = handler.handleBadCredentialsException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
-        assertThat(response.getTitle()).isEqualTo("Authentication failed");
-        assertThat(response.getDetail()).isEqualTo("Invalid username or password");
-    }
-
-    @Test
-    void handleDisabledException_ShouldReturnUnauthorized() {
-        DisabledException ex = new DisabledException("Account disabled");
-
-        ProblemDetail response = handler.handleDisabledException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
-        assertThat(response.getTitle()).isEqualTo("Account disabled");
-        assertThat(response.getDetail()).isEqualTo("User account is disabled");
-    }
-
-    @Test
-    void handleUsernameNotFoundException_ShouldReturnUnauthorized() {
-        UsernameNotFoundException ex = new UsernameNotFoundException("User not found");
-
-        ProblemDetail response = handler.handleUsernameNotFoundException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
-        assertThat(response.getTitle()).isEqualTo("Authentication failed");
-        assertThat(response.getDetail()).isEqualTo("Invalid username or password");
-    }
-
-    @Test
-    void handleAccessDeniedException_ShouldReturnForbidden() {
-        AccessDeniedException ex = new AccessDeniedException("Access denied");
-
-        ProblemDetail response = handler.handleAccessDeniedException(ex);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
-        assertThat(response.getTitle()).isEqualTo("Access denied");
-        assertThat(response.getDetail()).contains("permission");
     }
 
     @Test

@@ -243,13 +243,7 @@ public class TrendsService {
         final char unit = normalized.charAt(normalized.length() - 1);
 
         return switch (unit) {
-            case 'H' -> endDate.minus(amount, ChronoUnit.HOURS);
             case 'D' -> endDate.minus(amount, ChronoUnit.DAYS);
-            case 'M' -> {
-                final LocalDate endLocalDate = endDate.atZone(ZoneOffset.UTC).toLocalDate();
-                final LocalDate startLocalDate = endLocalDate.minusMonths(amount);
-                yield startLocalDate.atStartOfDay(ZoneOffset.UTC).toInstant();
-            }
             case 'Y' -> {
                 final LocalDate endLocalDate = endDate.atZone(ZoneOffset.UTC).toLocalDate();
                 final LocalDate startLocalDate = endLocalDate.minusYears(amount);
@@ -280,7 +274,7 @@ public class TrendsService {
             case "1Y" -> CerpsConstants.MAX_POINTS_1Y;
             case "2Y" -> CerpsConstants.MAX_POINTS_2Y;
             case "3Y" -> CerpsConstants.MAX_POINTS_3Y;
-            default -> CerpsConstants.MAX_POINTS_180D;
+            default -> throw new IllegalArgumentException("Invalid period: " + period);
         };
     }
 

@@ -256,16 +256,6 @@ class ProviderKeyManagementServiceTest {
         verify(encryptionService, never()).decrypt(anyString());
     }
 
-    @Test
-    void should_EvictCacheForProvider_When_Called() {
-        String providerName = "fixer";
-
-        service.evictCacheForProvider(providerName);
-
-        verify(repository, never()).findByProviderNameAndActiveTrue(anyString());
-        verify(encryptionService, never()).decrypt(anyString());
-    }
-
     private ApiProviderKeyEntity createEntity(Long id, String providerName, String encryptedKey, boolean active) {
         return ApiProviderKeyEntity.builder()
                 .id(id)

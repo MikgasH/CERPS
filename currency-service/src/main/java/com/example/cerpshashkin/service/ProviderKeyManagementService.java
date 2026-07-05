@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,12 +122,6 @@ public class ProviderKeyManagementService {
         log.debug("Successfully decrypted API key for provider: {}", providerName);
 
         return decryptedKey;
-    }
-
-    @CacheEvict(value = DECRYPTED_API_KEYS_CACHE, key = "#providerName")
-    public void evictCacheForProvider(final String providerName) {
-        log.debug("Evicting cache for provider: {}", providerName);
-        evictDecryptedKeyCache(providerName);
     }
 
     // Direct CacheManager eviction — annotation-based @CacheEvict does not fire on self-invocation

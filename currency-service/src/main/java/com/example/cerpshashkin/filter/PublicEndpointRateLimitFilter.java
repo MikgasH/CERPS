@@ -16,6 +16,7 @@ public class PublicEndpointRateLimitFilter extends AbstractRateLimitFilter {
             "/api/v1/currencies", 100,
             "/api/v1/rates/current", 60,
             "/api/v1/rates/historical", 60,
+            "/api/v1/rates/history", 60,
             "/api/v1/currencies/convert", 60,
             "/api/v1/ai/bank-commission", 10
     );

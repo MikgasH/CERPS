@@ -170,8 +170,10 @@ class TrendsServiceDownsampleTest {
     }
 
     @Test
-    void getMaxPointsForPeriod_UnknownPeriod_ShouldReturnDefault() {
-        assertThat(invokeGetMaxPointsForPeriod("ABC")).isEqualTo(CerpsConstants.MAX_POINTS_180D);
+    void getMaxPointsForPeriod_UnknownPeriod_ShouldThrow() {
+        assertThatThrownBy(() -> invokeGetMaxPointsForPeriod("ABC"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ABC");
     }
 
     @Test
