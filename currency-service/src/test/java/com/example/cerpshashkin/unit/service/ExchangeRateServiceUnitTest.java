@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.unit.service;
 
+import com.example.cerpshashkin.dto.CurrentRatesResponse;
 import com.example.cerpshashkin.entity.ExchangeRateEntity;
 import com.example.cerpshashkin.exception.AllProvidersFailedException;
 import com.example.cerpshashkin.model.CachedRate;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -415,6 +417,54 @@ class ExchangeRateServiceUnitTest {
         exchangeRateService.refreshRates();
 
         verify(exchangeRateRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void getAllRatesForBase_ShouldOmitMissingCurrency_WhenEurBaseSnapshotIsPartial() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("USD", "GBP", "BYN"));
+        when(exchangeRateRepository.findAllLatestByBaseCurrency(eq("EUR"), any(Instant.class)))
+                .thenReturn(List.of(
+                        rateEntity(USD, BigDecimal.valueOf(1.18)),
+                        rateEntity(GBP, BigDecimal.valueOf(0.87))
+                ));
+
+        CurrentRatesResponse response = exchangeRateService.getAllRatesForBase("EUR");
+
+        assertThat(response.rates()).containsOnlyKeys("USD", "GBP");
+        assertThat(response.rates().get("USD")).isEqualByComparingTo(BigDecimal.valueOf(1.18));
+        assertThat(response.rates().get("GBP")).isEqualByComparingTo(BigDecimal.valueOf(0.87));
+        assertThat(response.totalCurrencies()).isEqualTo(2);
+    }
+
+    @Test
+    void getAllRatesForBase_ShouldOmitMissingCurrency_WhenNonEurBaseSnapshotIsPartial() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet())
+                .thenReturn(Set.of("EUR", "USD", "GBP", "BYN"));
+        when(exchangeRateRepository.findAllLatestByBaseCurrency(eq("EUR"), any(Instant.class)))
+                .thenReturn(List.of(
+                        rateEntity(USD, BigDecimal.valueOf(1.18)),
+                        rateEntity(GBP, BigDecimal.valueOf(0.87))
+                ));
+
+        CurrentRatesResponse response = exchangeRateService.getAllRatesForBase("USD");
+
+        assertThat(response.rates()).containsOnlyKeys("EUR", "GBP");
+        assertThat(response.rates().get("EUR")).isEqualByComparingTo(
+                BigDecimal.ONE.divide(BigDecimal.valueOf(1.18), SCALE, RoundingMode.HALF_UP));
+        assertThat(response.rates().get("GBP")).isEqualByComparingTo(
+                BigDecimal.valueOf(0.87).divide(BigDecimal.valueOf(1.18), SCALE, RoundingMode.HALF_UP));
+    }
+
+    private ExchangeRateEntity rateEntity(Currency target, BigDecimal rate) {
+        return ExchangeRateEntity.builder()
+                .id(UUID.randomUUID())
+                .baseCurrency(EUR)
+                .targetCurrency(target)
+                .rate(rate)
+                .source("AGGREGATED")
+                .timestamp(Instant.now())
+                .build();
     }
 
     private RateQueryResult createRateQueryResult(BigDecimal rate, String rateType) {

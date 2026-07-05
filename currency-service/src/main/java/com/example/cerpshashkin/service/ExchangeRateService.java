@@ -101,21 +101,29 @@ public class ExchangeRateService {
                 throw new ExchangeRateNotAvailableException(baseCurrencyCode, normalized);
             }
 
+            // Mirror the EUR-base branch: targets missing from the snapshot
+            // (e.g. admin-added currency awaiting the next refresh) are omitted
+            // instead of failing the whole response.
             rates = supportedCodes.stream()
                     .filter(code -> !code.equals(normalized))
+                    .filter(code -> code.equals(baseCurrencyCode) || eurBasedRates.containsKey(code))
                     .collect(Collectors.toMap(
                             code -> code,
                             code -> {
                                 if (code.equals(baseCurrencyCode)) {
                                     return BigDecimal.ONE.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                                 }
-                                final BigDecimal targetRate = eurBasedRates.get(code);
-                                if (targetRate == null) {
-                                    throw new ExchangeRateNotAvailableException(normalized, code);
-                                }
-                                return targetRate.divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
+                                return eurBasedRates.get(code).divide(baseRate, CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
                             }
                     ));
+        }
+
+        final Set<String> omitted = new HashSet<>(supportedCodes);
+        omitted.remove(normalized);
+        omitted.removeAll(rates.keySet());
+        if (!omitted.isEmpty()) {
+            log.warn("Partial rate snapshot for base {} - omitting {} supported currencies without a fresh rate: {}",
+                    normalized, omitted.size(), omitted);
         }
 
         return CurrentRatesResponse.success(normalized, rates);
