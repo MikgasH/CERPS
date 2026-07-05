@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/migrations/v1.0-create-historical-rates.yaml
+  - include:
+      file: db/changelog/migrations/v1.1-historical-rates-sequence.yaml

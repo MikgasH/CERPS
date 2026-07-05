@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.config;
 
+import com.example.cerpshashkin.filter.AdminEndpointRateLimitFilter;
 import com.example.cerpshashkin.filter.ApiKeyAuthFilter;
 import com.example.cerpshashkin.filter.PublicEndpointRateLimitFilter;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class SecurityConfig {
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
     private final PublicEndpointRateLimitFilter publicRateLimitFilter;
+    private final AdminEndpointRateLimitFilter adminRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -56,7 +58,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                // Registration order matters: filters anchored to the same
+                // position run in insertion order, and the admin rate limit
+                // must run before ApiKeyAuthFilter so failed authentication
+                // attempts (key guessing) are throttled too.
                 .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -74,6 +81,14 @@ public class SecurityConfig {
     public FilterRegistrationBean<PublicEndpointRateLimitFilter> disablePublicRateLimitFilterAutoRegistration() {
         final FilterRegistrationBean<PublicEndpointRateLimitFilter> registration =
                 new FilterRegistrationBean<>(publicRateLimitFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AdminEndpointRateLimitFilter> disableAdminRateLimitFilterAutoRegistration() {
+        final FilterRegistrationBean<AdminEndpointRateLimitFilter> registration =
+                new FilterRegistrationBean<>(adminRateLimitFilter);
         registration.setEnabled(false);
         return registration;
     }

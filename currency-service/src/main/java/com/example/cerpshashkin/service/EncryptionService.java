@@ -1,5 +1,6 @@
 package com.example.cerpshashkin.service;
 
+import com.example.cerpshashkin.exception.EncryptionException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -8,6 +9,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -39,7 +41,7 @@ public class EncryptionService {
             GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
 
-            byte[] ciphertext = cipher.doFinal(plaintext.getBytes());
+            byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
 
             ByteBuffer byteBuffer = ByteBuffer.allocate(iv.length + ciphertext.length);
             byteBuffer.put(iv);
@@ -47,7 +49,7 @@ public class EncryptionService {
 
             return Base64.getEncoder().encodeToString(byteBuffer.array());
         } catch (Exception e) {
-            throw new RuntimeException("Encryption failed", e);
+            throw new EncryptionException("Encryption failed", e);
         }
     }
 
@@ -69,9 +71,9 @@ public class EncryptionService {
 
             byte[] plaintext = cipher.doFinal(ciphertext);
 
-            return new String(plaintext);
+            return new String(plaintext, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new RuntimeException("Decryption failed", e);
+            throw new EncryptionException("Decryption failed", e);
         }
     }
 }

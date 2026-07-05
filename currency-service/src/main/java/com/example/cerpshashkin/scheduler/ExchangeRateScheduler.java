@@ -1,12 +1,13 @@
 package com.example.cerpshashkin.scheduler;
 
 import com.example.cerpshashkin.service.ExchangeRateService;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -33,7 +34,11 @@ public class ExchangeRateScheduler {
 
     private final ExchangeRateService exchangeRateService;
 
-    @PostConstruct
+    // Runs after the application (and the actuator healthcheck) is already
+    // serving: with providers down, @PostConstruct here would stall boot for
+    // minutes (3 attempts with 30s waits). Reads before the first successful
+    // refresh are served from the database.
+    @EventListener(ApplicationReadyEvent.class)
     public void initializeExchangeRates() {
         log.info(LOG_INIT_START);
         for (int attempt = 1; attempt <= MAX_INIT_ATTEMPTS; attempt++) {
@@ -58,8 +63,10 @@ public class ExchangeRateScheduler {
         log.error(LOG_INIT_EXHAUSTED, MAX_INIT_ATTEMPTS);
     }
 
+    // Default matches application.yml's 8h interval; a missing property must
+    // not silently multiply provider call frequency.
     @CacheEvict(value = "currentRates", allEntries = true)
-    @Scheduled(fixedRateString = "${scheduling.exchange-rates.rate:3600000}")
+    @Scheduled(fixedRateString = "${scheduling.exchange-rates.rate:28800000}")
     public void updateExchangeRates() {
         log.info(LOG_SCHEDULED_UPDATE_START);
         try {

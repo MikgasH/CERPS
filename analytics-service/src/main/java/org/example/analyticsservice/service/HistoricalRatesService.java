@@ -120,6 +120,14 @@ public class HistoricalRatesService {
         final Currency fromCurrency = Currency.getInstance(from);
         final Currency toCurrency = Currency.getInstance(to);
 
+        // Same-currency rates are 1 by definition on every date: serve the
+        // flat series straight away instead of backfilling/querying the store
+        // and materializing a synthetic point per day.
+        if (fromCurrency.equals(toCurrency)) {
+            fetchHitCounter.increment();
+            return identitySeries(startDate, endDate);
+        }
+
         boolean fetched = false;
         try {
             for (final Currency currency : nonEurTargets(fromCurrency, toCurrency)) {
@@ -290,14 +298,21 @@ public class HistoricalRatesService {
                 .build());
     }
 
+    /**
+     * Two boundary points describe a same-currency series completely — the
+     * rate is constant, so intermediate daily points carry no information.
+     */
+    private static List<RatePoint> identitySeries(final LocalDate startDate, final LocalDate endDate) {
+        if (startDate.equals(endDate)) {
+            return List.of(new RatePoint(atEcbFixing(startDate), IDENTITY_RATE));
+        }
+        return List.of(
+                new RatePoint(atEcbFixing(startDate), IDENTITY_RATE),
+                new RatePoint(atEcbFixing(endDate), IDENTITY_RATE));
+    }
+
     private List<RatePoint> computeCrossRates(final Currency fromCurrency, final Currency toCurrency,
                                               final LocalDate startDate, final LocalDate endDate) {
-        if (EUR_CURRENCY.equals(fromCurrency) && EUR_CURRENCY.equals(toCurrency)) {
-            return startDate.datesUntil(endDate.plusDays(1))
-                    .map(date -> new RatePoint(atEcbFixing(date), IDENTITY_RATE))
-                    .toList();
-        }
-
         final List<HistoricalRate> rows = historicalRateRepository
                 .findByBaseCurrencyAndTargetCurrencyInAndRateDateBetweenOrderByRateDate(
                         EUR_CURRENCY, nonEurTargets(fromCurrency, toCurrency), startDate, endDate);

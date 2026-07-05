@@ -42,6 +42,10 @@ public class AiService {
         }
     }
 
+    // Returns Double despite the repo's BigDecimal-for-money rule: this is an
+    // LLM-estimated display percentage parsed from free text, not stored
+    // financial data — no arithmetic is ever performed on it. Null means
+    // "unknown".
     public Double getBankCommission(final String bankName) {
         final String systemPrompt = requirePrompt(PROMPT_SYSTEM);
         final String userPrompt = requirePrompt(PROMPT_BANK_COMMISSION)

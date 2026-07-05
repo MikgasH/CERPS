@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: drop-idx-latest-rate
+      author: hashkin
+      comment: >-
+        idx_latest_rate (v1.2: base_currency, target_currency, timestamp DESC)
+        duplicates the index backing the v1.9 unique_rate constraint
+        (base_currency, target_currency, timestamp) — Postgres scans that
+        btree backwards for the ORDER BY timestamp DESC lookups, so the extra
+        index only adds write cost on every rate insert. The precondition
+        keeps the changeset a no-op on databases where the index is already
+        gone (v1.9 was applied manually on Railway, so environments may drift).
+      preConditions:
+        - onFail: MARK_RAN
+        - indexExists:
+            tableName: exchange_rates
+            indexName: idx_latest_rate
+      changes:
+        - dropIndex:
+            indexName: idx_latest_rate
+            tableName: exchange_rates
+      rollback:
+        - createIndex:
+            indexName: idx_latest_rate
+            tableName: exchange_rates
+            columns:
+              - column:
+                  name: base_currency
+              - column:
+                  name: target_currency
+              - column:
+                  name: timestamp
+                  descending: true

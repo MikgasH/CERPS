@@ -3,7 +3,7 @@ package com.example.cerpshashkin.integration.controller;
 import com.example.cerpshashkin.integration.config.TestConfig;
 import com.example.cerpshashkin.dto.CreateProviderKeyRequest;
 import com.example.cerpshashkin.dto.UpdateProviderKeyRequest;
-import com.example.cerpshashkin.filter.ApiKeyAuthFilter;
+import com.example.cerpshashkin.filter.AdminEndpointRateLimitFilter;
 import com.example.cerpshashkin.repository.ApiProviderKeyRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +46,7 @@ class ProviderKeyManagementControllerTest {
     private ApiProviderKeyRepository repository;
 
     @Autowired
-    private ApiKeyAuthFilter apiKeyAuthFilter;
+    private AdminEndpointRateLimitFilter adminRateLimitFilter;
 
     private static final String BASE_URL = "/api/v1/admin/provider-keys";
     private static final String API_KEY_HEADER = "X-API-Key";
@@ -56,7 +56,7 @@ class ProviderKeyManagementControllerTest {
     @BeforeEach
     void resetRateLimiter() {
         Map<String, ?> rateLimitMap =
-                (Map<String, ?>) ReflectionTestUtils.getField(apiKeyAuthFilter, "rateLimitMap");
+                (Map<String, ?>) ReflectionTestUtils.getField(adminRateLimitFilter, "rateLimitMap");
         if (rateLimitMap != null) {
             rateLimitMap.clear();
         }

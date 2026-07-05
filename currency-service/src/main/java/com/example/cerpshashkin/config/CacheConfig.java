@@ -1,6 +1,8 @@
 package com.example.cerpshashkin.config;
 
+import com.example.cerpshashkin.dto.HistoricalRatesResponse;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCache;
@@ -8,9 +10,9 @@ import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 
 @Configuration
@@ -26,8 +28,11 @@ public class CacheConfig {
     // bounded (unlike the small fixed-key ConcurrentMapCaches above).
     private static final long HISTORICAL_RATES_MAX_SIZE = 1_000;
     private static final Duration HISTORICAL_RATES_TTL = Duration.ofHours(1);
-
-    private CacheManager cacheManager;
+    // Past-date snapshots are immutable once the ECB fixing has happened, so
+    // a popular old date must not re-fetch from Frankfurter every hour. Kept
+    // finite (not forever) so a partial snapshot — e.g. a transient gap-fill
+    // failure — still heals within a day.
+    private static final Duration HISTORICAL_RATES_PAST_DATE_TTL = Duration.ofHours(24);
 
     @Bean
     public CacheManager cacheManager() {
@@ -38,20 +43,44 @@ public class CacheConfig {
                 new ConcurrentMapCache(CURRENT_RATES_CACHE),
                 new CaffeineCache(HISTORICAL_RATES_CACHE, Caffeine.newBuilder()
                         .maximumSize(HISTORICAL_RATES_MAX_SIZE)
-                        .expireAfterWrite(HISTORICAL_RATES_TTL)
+                        .expireAfter(historicalRatesExpiry())
                         .build())
         ));
-        this.cacheManager = manager;
         return manager;
     }
 
-    @Scheduled(fixedRate = 900_000) // 15 minutes
-    public void evictSupportedCurrenciesCache() {
-        if (cacheManager != null) {
-            final var cache = cacheManager.getCache(SUPPORTED_CURRENCIES_CACHE);
-            if (cache != null) {
-                cache.clear();
+    /**
+     * Variable expiration for the historical-rates cache: a same-day snapshot
+     * can still change until the ECB fixing and keeps the short TTL, while a
+     * past-date snapshot cannot change and stays cached for a day (bounded by
+     * {@code maximumSize} LRU either way).
+     */
+    private static Expiry<Object, Object> historicalRatesExpiry() {
+        return new Expiry<>() {
+            @Override
+            public long expireAfterCreate(final Object key, final Object value, final long currentTime) {
+                return ttlFor(value);
             }
-        }
+
+            @Override
+            public long expireAfterUpdate(final Object key, final Object value,
+                                          final long currentTime, final long currentDuration) {
+                return ttlFor(value);
+            }
+
+            @Override
+            public long expireAfterRead(final Object key, final Object value,
+                                        final long currentTime, final long currentDuration) {
+                return currentDuration;
+            }
+
+            private long ttlFor(final Object value) {
+                if (value instanceof HistoricalRatesResponse response
+                        && response.date().isBefore(LocalDate.now())) {
+                    return HISTORICAL_RATES_PAST_DATE_TTL.toNanos();
+                }
+                return HISTORICAL_RATES_TTL.toNanos();
+            }
+        };
     }
 }

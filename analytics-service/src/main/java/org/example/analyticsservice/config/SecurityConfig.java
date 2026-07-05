@@ -1,7 +1,9 @@
 package org.example.analyticsservice.config;
 
 import lombok.RequiredArgsConstructor;
+import org.example.analyticsservice.filter.AdminEndpointRateLimitFilter;
 import org.example.analyticsservice.filter.TrendsEndpointRateLimitFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final TrendsEndpointRateLimitFilter publicRateLimitFilter;
+    private final AdminEndpointRateLimitFilter adminRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -36,8 +39,17 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<AdminEndpointRateLimitFilter> disableAdminRateLimitFilterAutoRegistration() {
+        final FilterRegistrationBean<AdminEndpointRateLimitFilter> registration =
+                new FilterRegistrationBean<>(adminRateLimitFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

@@ -25,6 +25,12 @@ spring:
       hibernate:
         format_sql: true
         default_schema: public
+        # Batches the historical-store backfill inserts; effective because
+        # HistoricalRate uses a sequence generator (batch size matches its
+        # allocationSize).
+        jdbc:
+          batch_size: 50
+        order_inserts: true
     open-in-view: false
 
   liquibase:

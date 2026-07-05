@@ -21,3 +21,5 @@ databaseChangeLog:
       file: db/changelog/migrations/v1.9-unique-rate.xml
   - include:
       file: db/changelog/migrations/v2.0-add-cis-currencies.yaml
+  - include:
+      file: db/changelog/migrations/v2.1-drop-idx-latest-rate.yaml

@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
@@ -42,6 +42,7 @@ public class ExchangeRateService {
     private final CurrencyRateCache cache;
     private final ExchangeRateRepository exchangeRateRepository;
     private final SupportedCurrenciesService supportedCurrenciesService;
+    private final TransactionTemplate transactionTemplate;
     private final MeterRegistry meterRegistry;
 
     private final AtomicInteger refreshFailureCount = new AtomicInteger(0);
@@ -133,7 +134,11 @@ public class ExchangeRateService {
         return CurrentRatesResponse.success(normalized, rates);
     }
 
-    @Transactional
+    // Deliberately NOT @Transactional: the provider chain plus fallback HTTP
+    // calls can take tens of seconds, and an open transaction would pin a
+    // Hikari connection for the whole time. Only the saveAll blocks run in
+    // (their own) transactions, matching the analytics-service pattern of
+    // keeping HTTP strictly outside any transaction.
     public void refreshRates() {
         log.info("Refreshing exchange rates");
 
@@ -168,7 +173,8 @@ public class ExchangeRateService {
                     )
                     .toList();
 
-            exchangeRateRepository.saveAll(entities);
+            transactionTemplate.executeWithoutResult(status ->
+                    exchangeRateRepository.saveAll(entities));
 
             entities.forEach(entity ->
                     cache.putRate(
@@ -200,6 +206,13 @@ public class ExchangeRateService {
      * not cover are gap-filled from fallback providers (Frankfurter) and
      * persisted with their own source marker. A failure here must never undo
      * phase 1, so everything is caught, logged and counted.
+     *
+     * <p>⚠️ CROSS-SERVICE COUPLING: analytics-service hardcodes which
+     * currencies end up on this Frankfurter-only path
+     * ({@code TrendsService.FRANKFURTER_ONLY_CURRENCIES}) because no endpoint
+     * exposes per-currency source metadata. If provider coverage changes
+     * (new primary provider, currency added/removed), update that set in the
+     * same change.
      */
     private void fillMissingRatesFromFallback(final Set<String> supportedCodes,
                                               final List<ExchangeRateEntity> aggregatedEntities,
@@ -237,7 +250,8 @@ public class ExchangeRateService {
                     )
                     .toList();
 
-            exchangeRateRepository.saveAll(fallbackEntities);
+            transactionTemplate.executeWithoutResult(status ->
+                    exchangeRateRepository.saveAll(fallbackEntities));
 
             fallbackEntities.forEach(entity ->
                     cache.putRate(

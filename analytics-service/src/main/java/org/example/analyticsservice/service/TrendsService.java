@@ -40,6 +40,14 @@ public class TrendsService {
     // Currencies covered only by the Frankfurter gap-fill provider in
     // currency-service: one rate per business day, so a 1D window yields
     // 1-2 identical points — not enough for a meaningful chart.
+    //
+    // ⚠️ CROSS-SERVICE COUPLING: this set duplicates provider coverage that
+    // only currency-service actually knows (its primary providers vs the
+    // fillMissingRatesFromFallback gap-fill in ExchangeRateService; the codes
+    // below are the v2.0-add-cis-currencies seed). currency-service exposes
+    // no per-currency source metadata yet, so this cannot be queried — if a
+    // currency gains/loses primary-provider coverage there, update this set
+    // in the same change (see the matching note in ExchangeRateService).
     static final Set<String> FRANKFURTER_ONLY_CURRENCIES = Set.of(
             "BYN", "RUB", "GEL", "AMD", "AZN", "MDL", "KZT", "UZS",
             "ISK", "RSD", "BAM", "MKD", "ALL");

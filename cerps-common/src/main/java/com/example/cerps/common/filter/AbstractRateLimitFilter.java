@@ -53,7 +53,7 @@ public abstract class AbstractRateLimitFilter extends OncePerRequestFilter {
         final String key = resolveBucketKey(request, clientIp);
 
         if (isRateLimited(key, limit)) {
-            log.warn("AUDIT: Public rate limit exceeded. ip={}, path={}, limit={}/min, timestamp={}",
+            log.warn("AUDIT: Rate limit exceeded. ip={}, path={}, limit={}/min, timestamp={}",
                     clientIp, request.getRequestURI(), limit, Instant.now());
             sendTooManyRequests(response, limit);
             return;
@@ -65,7 +65,14 @@ public abstract class AbstractRateLimitFilter extends OncePerRequestFilter {
     protected String extractClientIp(final HttpServletRequest request) {
         final String xForwardedFor = request.getHeader(FORWARDED_FOR_HEADER);
         if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
+            // Proxies append to X-Forwarded-For, so only the right-most entry
+            // was written by our own edge proxy (Railway); anything to its left
+            // is client-supplied and spoofable. Never trust the first value.
+            final String[] hops = xForwardedFor.split(",");
+            final String lastHop = hops[hops.length - 1].trim();
+            if (!lastHop.isEmpty()) {
+                return lastHop;
+            }
         }
         return request.getRemoteAddr();
     }

@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: historical-rates-id-sequence
+      author: hashkin
+      comment: >-
+        Dedicated sequence for historical_rates ids so Hibernate can batch
+        backfill inserts (the previous IDENTITY strategy forced row-by-row
+        round-trips). INCREMENT BY 50 must match the entity's allocationSize.
+        setval starts the sequence above any ids the identity column already
+        handed out; the old identity default remains on the column but is
+        never used once the entity switches to the sequence.
+      changes:
+        - createSequence:
+            sequenceName: historical_rates_seq
+            incrementBy: 50
+            startValue: 1
+        - sql:
+            sql: >-
+              SELECT setval('historical_rates_seq',
+              (SELECT COALESCE(MAX(id), 0) + 50 FROM historical_rates))
+      rollback:
+        - dropSequence:
+            sequenceName: historical_rates_seq
