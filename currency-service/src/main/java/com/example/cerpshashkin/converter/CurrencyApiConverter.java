@@ -14,8 +14,18 @@ import java.util.Map;
 @Slf4j
 public class CurrencyApiConverter {
 
+    private static final String MISSING_META_LOG =
+            "CurrencyAPI response is missing meta.last_updated_at - treating response as invalid";
+
     public CurrencyExchangeResponse convertToCurrencyExchange(final CurrencyApiRawResponse raw) {
         if (raw == null || raw.data() == null) {
+            return CurrencyExchangeResponse.failure();
+        }
+
+        // The rate date comes from meta; a malformed response without it must
+        // surface as a validation failure, not an NPE logged as a generic error.
+        if (raw.meta() == null || raw.meta().lastUpdatedAt() == null) {
+            log.warn(MISSING_META_LOG);
             return CurrencyExchangeResponse.failure();
         }
 

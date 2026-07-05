@@ -54,8 +54,11 @@ public class CurrencyConversionService {
             try {
                 log.info(LOG_CONVERTING, request.amount(), request.from(), request.to());
 
-                final String fromCode = request.from().toUpperCase();
-                final String toCode = request.to().toUpperCase();
+                // Trim before uppercasing: the bean validator accepts padded
+                // codes (" usd"), so normalization here must match it or the
+                // lookup below rejects input that already passed validation.
+                final String fromCode = request.from().trim().toUpperCase();
+                final String toCode = request.to().trim().toUpperCase();
 
                 final List<String> supportedCurrencies = supportedCurrenciesService.getSupportedCurrencyCodes();
 

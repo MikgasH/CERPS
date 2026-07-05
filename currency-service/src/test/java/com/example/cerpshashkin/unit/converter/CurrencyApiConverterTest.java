@@ -67,6 +67,33 @@ class CurrencyApiConverterTest {
     }
 
     @Test
+    void convertToCurrencyExchange_WithNullMeta_ShouldReturnFailure_NotThrow() {
+        CurrencyApiRawResponse.CurrencyData eurData =
+                new CurrencyApiRawResponse.CurrencyData("EUR", BigDecimal.valueOf(0.85));
+        CurrencyApiRawResponse rawResponse = new CurrencyApiRawResponse(null, Map.of("EUR", eurData));
+
+        // A malformed response with rates but no meta must degrade to a
+        // failure response instead of an NPE bubbling up as a generic error.
+        CurrencyExchangeResponse result = converter.convertToCurrencyExchange(rawResponse);
+
+        assertThat(result).isNotNull();
+        assertThat(result.success()).isFalse();
+    }
+
+    @Test
+    void convertToCurrencyExchange_WithNullLastUpdatedAt_ShouldReturnFailure_NotThrow() {
+        CurrencyApiRawResponse.CurrencyData eurData =
+                new CurrencyApiRawResponse.CurrencyData("EUR", BigDecimal.valueOf(0.85));
+        CurrencyApiRawResponse rawResponse = new CurrencyApiRawResponse(
+                new CurrencyApiRawResponse.Meta(null), Map.of("EUR", eurData));
+
+        CurrencyExchangeResponse result = converter.convertToCurrencyExchange(rawResponse);
+
+        assertThat(result).isNotNull();
+        assertThat(result.success()).isFalse();
+    }
+
+    @Test
     void convertToCurrencyExchange_WithInvalidCurrency_ShouldSkipInvalidCurrency() {
         CurrencyApiRawResponse.Meta meta = new CurrencyApiRawResponse.Meta(ZonedDateTime.now());
         CurrencyApiRawResponse.CurrencyData validData = new CurrencyApiRawResponse.CurrencyData("USD", BigDecimal.valueOf(1.0));

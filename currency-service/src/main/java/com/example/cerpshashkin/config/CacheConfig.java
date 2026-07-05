@@ -29,10 +29,13 @@ public class CacheConfig {
     private static final long HISTORICAL_RATES_MAX_SIZE = 1_000;
     private static final Duration HISTORICAL_RATES_TTL = Duration.ofHours(1);
     // Past-date snapshots are immutable once the ECB fixing has happened, so
-    // a popular old date must not re-fetch from Frankfurter every hour. Kept
-    // finite (not forever) so a partial snapshot — e.g. a transient gap-fill
-    // failure — still heals within a day.
+    // a popular old date must not re-fetch from Frankfurter every hour.
     private static final Duration HISTORICAL_RATES_PAST_DATE_TTL = Duration.ofHours(24);
+    // A partial snapshot (the Frankfurter gap-fill failed or covered only
+    // some currencies) must not be served for the full TTL after the
+    // provider recovers; the short TTL retries soon while still shielding
+    // Frankfurter from a retry per request.
+    private static final Duration HISTORICAL_RATES_PARTIAL_TTL = Duration.ofMinutes(5);
 
     @Bean
     public CacheManager cacheManager() {
@@ -50,10 +53,11 @@ public class CacheConfig {
     }
 
     /**
-     * Variable expiration for the historical-rates cache: a same-day snapshot
-     * can still change until the ECB fixing and keeps the short TTL, while a
-     * past-date snapshot cannot change and stays cached for a day (bounded by
-     * {@code maximumSize} LRU either way).
+     * Variable expiration for the historical-rates cache: a partial snapshot
+     * expires within minutes so it heals once the gap-fill provider recovers,
+     * a same-day snapshot can still change until the ECB fixing and keeps the
+     * hourly TTL, and a complete past-date snapshot cannot change and stays
+     * cached for a day (bounded by {@code maximumSize} LRU either way).
      */
     private static Expiry<Object, Object> historicalRatesExpiry() {
         return new Expiry<>() {
@@ -75,9 +79,13 @@ public class CacheConfig {
             }
 
             private long ttlFor(final Object value) {
-                if (value instanceof HistoricalRatesResponse response
-                        && response.date().isBefore(LocalDate.now())) {
-                    return HISTORICAL_RATES_PAST_DATE_TTL.toNanos();
+                if (value instanceof HistoricalRatesResponse response) {
+                    if (!response.complete()) {
+                        return HISTORICAL_RATES_PARTIAL_TTL.toNanos();
+                    }
+                    if (response.date().isBefore(LocalDate.now())) {
+                        return HISTORICAL_RATES_PAST_DATE_TTL.toNanos();
+                    }
                 }
                 return HISTORICAL_RATES_TTL.toNanos();
             }

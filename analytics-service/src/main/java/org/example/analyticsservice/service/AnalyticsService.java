@@ -16,9 +16,11 @@ public class AnalyticsService {
     private final TrendsCache trendsCache;
 
     public TrendsResponse calculateTrends(final TrendsRequest request) {
-        final String from = request.from().toUpperCase();
-        final String to = request.to().toUpperCase();
-        final String period = request.period().toUpperCase();
+        // Same normalization as TrendsService, so padded input maps to the
+        // same cache key as its canonical form instead of a duplicate entry.
+        final String from = request.from().trim().toUpperCase();
+        final String to = request.to().trim().toUpperCase();
+        final String period = request.period().trim().toUpperCase();
 
         return trendsCache.get(from, to, period)
                 .orElseGet(() -> {

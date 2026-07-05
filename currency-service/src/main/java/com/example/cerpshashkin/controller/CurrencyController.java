@@ -70,13 +70,20 @@ public class CurrencyController {
     }
 
     @GetMapping("/rates/history")
-    @Operation(summary = "Get exchange rate history for a currency pair")
+    @Operation(summary = "Get exchange rate history for a currency pair; "
+            + "a missing startDate/endDate leaves that side of the range open")
     public ResponseEntity<RateHistoryResponse> getRateHistory(
             @RequestParam final String from,
             @RequestParam final String to,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final Instant startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final Instant endDate) {
         log.info("GET /api/v1/rates/history from={} to={} startDate={} endDate={}", from, to, startDate, endDate);
-        return ResponseEntity.ok(rateHistoryService.getRateHistory(from, to, startDate, endDate));
+        // The repository query only filters by date when BOTH bounds are
+        // bound (its NULL check inspects :startDate alone), so a one-sided
+        // request must be completed here: a missing bound means that side of
+        // the range is open, never a silently empty result.
+        final Instant effectiveStart = startDate == null && endDate != null ? Instant.EPOCH : startDate;
+        final Instant effectiveEnd = startDate != null && endDate == null ? Instant.now() : endDate;
+        return ResponseEntity.ok(rateHistoryService.getRateHistory(from, to, effectiveStart, effectiveEnd));
     }
 }

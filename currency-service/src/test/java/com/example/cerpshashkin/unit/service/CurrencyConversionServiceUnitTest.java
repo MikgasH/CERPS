@@ -158,6 +158,25 @@ class CurrencyConversionServiceUnitTest {
     }
 
     @Test
+    void convertCurrency_WithPaddedCurrencyCodes_ShouldTrimBeforeResolving() {
+        final ConversionRequest request = ConversionRequest.builder()
+                .amount(new BigDecimal("100"))
+                .from(" usd")
+                .to("eur ")
+                .build();
+
+        when(exchangeRateService.getExchangeRate(any(Currency.class), any(Currency.class)))
+                .thenReturn(Optional.of(new BigDecimal("0.85")));
+
+        final ConversionResponse result = conversionService.convertCurrency(request);
+
+        // Padded codes pass bean validation (the validator trims), so the
+        // service must trim too instead of rejecting " USD" as unsupported.
+        assertThat(result.convertedAmount()).isEqualByComparingTo(new BigDecimal("85"));
+        verify(exchangeRateService).getExchangeRate(Currency.getInstance("USD"), Currency.getInstance("EUR"));
+    }
+
+    @Test
     void convertCurrency_WithPreciseCalculation_ShouldReturnCorrectPrecision() {
         final ConversionRequest request = ConversionRequest.builder()
                 .amount(new BigDecimal("123.45"))

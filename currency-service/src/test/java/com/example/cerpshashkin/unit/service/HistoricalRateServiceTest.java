@@ -101,6 +101,7 @@ class HistoricalRateServiceTest {
         // Source stays DATABASE (primary snapshot) but the set is now complete.
         assertThat(result.source()).isEqualTo("DATABASE");
         assertThat(result.timestamp()).isEqualTo(snapshotTime);
+        assertThat(result.complete()).isTrue();
         assertThat(result.rates())
                 .containsEntry("USD", new BigDecimal("1.0834"))
                 .containsEntry("PLN", new BigDecimal("4.2891"));
@@ -135,9 +136,28 @@ class HistoricalRateServiceTest {
 
         HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
 
-        // A gap-fill failure must not discard the DB snapshot we already resolved.
+        // A gap-fill failure must not discard the DB snapshot we already resolved,
+        // but the response must be marked partial so it is only cached briefly.
         assertThat(result.source()).isEqualTo("DATABASE");
         assertThat(result.rates()).containsOnlyKeys("USD");
+        assertThat(result.complete()).isFalse();
+    }
+
+    @Test
+    void getHistoricalRates_ShouldMarkResponsePartial_WhenFrankfurterFallbackMissesCurrencies() {
+        when(supportedCurrenciesService.getSupportedCurrencyCodesAsSet()).thenReturn(SUPPORTED);
+        when(exchangeRateRepository.findLatestPerTargetInWindow(eq("EUR"), any(), any()))
+                .thenReturn(List.of());
+        // Frankfurter has USD for this date but not PLN.
+        when(frankfurterClient.getHistoricalRates(eq(TEST_DATE), anySet()))
+                .thenReturn(CurrencyExchangeResponse.success(
+                        EUR, TEST_DATE, Map.of(USD, new BigDecimal("1.0834")), false));
+
+        HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
+
+        assertThat(result.source()).isEqualTo("FRANKFURTER");
+        assertThat(result.rates()).containsOnlyKeys("USD");
+        assertThat(result.complete()).isFalse();
     }
 
     @Test
@@ -177,6 +197,7 @@ class HistoricalRateServiceTest {
         HistoricalRatesResponse result = historicalRateService.getHistoricalRates("EUR", TEST_DATE);
 
         assertThat(result.source()).isEqualTo("FRANKFURTER");
+        assertThat(result.complete()).isTrue();
         assertThat(result.rates())
                 .containsEntry("USD", new BigDecimal("1.0834"))
                 .containsEntry("PLN", new BigDecimal("4.2891"));

@@ -37,6 +37,13 @@ public class TrendsService {
     static final int FALLBACK_WIDEN_FACTOR = 2;
     static final Duration FALLBACK_MAX_WINDOW = Duration.ofDays(30);
 
+    // currency-service prunes exchange_rates after 395 days
+    // (DatabaseCleanupScheduler), so its /rates/history can never cover a
+    // 2Y/3Y window. Falling back there would silently truncate a multi-year
+    // trend to ~13 months while still labeling it with the requested period,
+    // so windows longer than this fail instead of falling back.
+    static final int LEGACY_RETENTION_DAYS = 395;
+
     // Currencies covered only by the Frankfurter gap-fill provider in
     // currency-service: one rate per business day, so a 1D window yields
     // 1-2 identical points — not enough for a meaningful chart.
@@ -61,6 +68,9 @@ public class TrendsService {
             "Historical store yielded {} point(s) for {} -> {} - falling back to currency-service history";
     private static final String HISTORICAL_FAILURE_LOG =
             "Historical store failed for {} -> {} - falling back to currency-service history: {}";
+    private static final String RETENTION_EXCEEDED_LOG =
+            "Historical store cannot serve {} -> {} over {} and the legacy fallback retains only {} days"
+                    + " - failing instead of serving a truncated series";
 
     private final CurrencyServiceClient currencyServiceClient;
     private final HistoricalRatesService historicalRatesService;
@@ -88,8 +98,11 @@ public class TrendsService {
     public TrendsResult calculateTrends(final TrendsRequest request) {
         return trendsCalculationTimer.record(() -> {
             try {
-                final String fromCode = request.from().toUpperCase();
-                final String toCode = request.to().toUpperCase();
+                // Trim before uppercasing: the bean validator accepts padded
+                // codes (" usd"), so normalization here must match it or the
+                // supported-currency check rejects already-validated input.
+                final String fromCode = request.from().trim().toUpperCase();
+                final String toCode = request.to().trim().toUpperCase();
 
                 validateSupportedCurrency(fromCode);
                 validateSupportedCurrency(toCode);
@@ -115,6 +128,18 @@ public class TrendsService {
                 } else {
                     rates = fetchHistoricalPoints(fromCode, toCode, startDate, endDate);
                     if (rates.size() < 2) {
+                        // The legacy source only retains ~13 months of rates:
+                        // for longer windows a fallback response would cover a
+                        // fraction of the requested period while still being
+                        // labeled 2Y/3Y - fail instead of misleading the caller.
+                        if (exceedsLegacyRetention(startDate, endDate)) {
+                            log.warn(RETENTION_EXCEEDED_LOG, fromCode, toCode,
+                                    request.period().toUpperCase(), LEGACY_RETENTION_DAYS);
+                            throw new InsufficientDataException(
+                                    String.format("Historical data for %s -> %s over period %s is currently"
+                                            + " unavailable; try a shorter period",
+                                            fromCode, toCode, request.period().toUpperCase()));
+                        }
                         log.warn(HISTORICAL_FALLBACK_LOG, rates.size(), fromCode, toCode);
                         final LegacyHistory legacy = fetchLegacyHistory(fromCode, toCode, startDate, endDate);
                         rates = legacy.points();
@@ -212,6 +237,10 @@ public class TrendsService {
             log.warn(HISTORICAL_FAILURE_LOG, fromCode, toCode, e.getMessage());
             return List.of();
         }
+    }
+
+    private static boolean exceedsLegacyRetention(final Instant startDate, final Instant endDate) {
+        return Duration.between(startDate, endDate).toDays() > LEGACY_RETENTION_DAYS;
     }
 
     private List<RatePoint> widenWindow(final String fromCode, final String toCode,

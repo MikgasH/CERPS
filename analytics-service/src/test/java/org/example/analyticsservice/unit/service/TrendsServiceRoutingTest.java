@@ -38,7 +38,9 @@ import static org.mockito.Mockito.when;
 /**
  * Verifies the period-based routing introduced in Task 4 step 7: 1D stays on
  * the legacy currency-service path, 7D..1Y go through the historical store
- * with the legacy path as fallback, and the existing exception taxonomy
+ * with the legacy path as fallback, 2Y/3Y go through the historical store
+ * with NO fallback (the legacy source retains only ~13 months, so a fallback
+ * would silently truncate the series), and the existing exception taxonomy
  * (404/422/503) is preserved across the fallback chain.
  */
 @ExtendWith(MockitoExtension.class)
@@ -165,6 +167,46 @@ class TrendsServiceRoutingTest {
 
         assertThatThrownBy(() -> service.calculateTrends(new TrendsRequest("USD", "EUR", "30D")))
                 .isInstanceOf(InsufficientDataException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2Y", "3Y"})
+    void calculateTrends_ShouldThrowInsufficientData_WhenStoreFailsAndPeriodExceedsLegacyRetention(
+            final String period) {
+        when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
+                .thenThrow(new ExternalServiceException("Frankfurter unavailable"));
+
+        // The legacy source retains only ~13 months: a 2Y/3Y fallback would be
+        // silently truncated, so the request must fail instead of falling back.
+        assertThatThrownBy(() -> service.calculateTrends(new TrendsRequest("USD", "EUR", period)))
+                .isInstanceOf(InsufficientDataException.class)
+                .hasMessageContaining(period);
+        verify(currencyServiceClient, never()).getRateHistory(any(), any(), any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2Y", "3Y"})
+    void calculateTrends_ShouldThrowInsufficientData_WhenStoreSparseAndPeriodExceedsLegacyRetention(
+            final String period) {
+        when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(List.of(new RatePoint(now, new BigDecimal("1.10"))));
+
+        assertThatThrownBy(() -> service.calculateTrends(new TrendsRequest("USD", "EUR", period)))
+                .isInstanceOf(InsufficientDataException.class);
+        verify(currencyServiceClient, never()).getRateHistory(any(), any(), any(), any());
+    }
+
+    @Test
+    void calculateTrends_ShouldTrimCurrencyCodes_WhenInputPadded() {
+        when(historicalRatesService.getRatePoints(eq("USD"), eq("EUR"), any(), any()))
+                .thenReturn(twoPoints());
+
+        // Padded codes pass bean validation (the validator trims), so the
+        // service must trim too instead of rejecting " USD" as unsupported.
+        TrendsService.TrendsResult result = service.calculateTrends(new TrendsRequest(" usd", "eur ", "7D"));
+
+        assertThat(result.response().from()).isEqualTo("USD");
+        assertThat(result.response().to()).isEqualTo("EUR");
     }
 
     @Test

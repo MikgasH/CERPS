@@ -67,7 +67,10 @@ public class HistoricalRateService {
                 ? snapshot.eurRates()
                 : convertToCrossRates(base, date, snapshot.eurRates(), supportedCodes);
 
-        return new HistoricalRatesResponse(base, date, rates, snapshot.source(), snapshot.timestamp());
+        // Cross-rates cover exactly what the EUR snapshot covers, so the
+        // snapshot's completeness carries over to the response unchanged.
+        return new HistoricalRatesResponse(
+                base, date, rates, snapshot.source(), snapshot.timestamp(), snapshot.complete());
     }
 
     private void validateDate(final LocalDate date) {
@@ -111,7 +114,8 @@ public class HistoricalRateService {
         fillMissingFromFrankfurter(date, supportedCodes, rates);
 
         log.info("Historical rates for {} resolved from database - {} rates", date, rates.size());
-        return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_DATABASE, snapshotTimestamp);
+        return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_DATABASE, snapshotTimestamp,
+                coversAllSupported(rates, supportedCodes));
     }
 
     /**
@@ -187,7 +191,20 @@ public class HistoricalRateService {
         final Instant timestamp = rateDate.atTime(ECB_FIX_TIME_UTC).toInstant(ZoneOffset.UTC);
 
         log.info("Historical rates for {} resolved from Frankfurter - {} rates", date, rates.size());
-        return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_FRANKFURTER, timestamp);
+        return new ResolvedSnapshot(rates, HistoricalRatesResponse.SOURCE_FRANKFURTER, timestamp,
+                coversAllSupported(rates, supportedCodes));
+    }
+
+    /**
+     * A snapshot is complete when every supported currency (other than the
+     * EUR pivot itself) has a rate. Partial snapshots get a short cache TTL
+     * (see {@code CacheConfig}) so they heal quickly once the gap-fill
+     * provider recovers, instead of being served for the full TTL.
+     */
+    private boolean coversAllSupported(final Map<String, BigDecimal> eurRates, final Set<String> supportedCodes) {
+        return supportedCodes.stream()
+                .filter(code -> !code.equals(baseCurrencyCode))
+                .allMatch(eurRates::containsKey);
     }
 
     private Map<String, BigDecimal> convertToCrossRates(final String base,
@@ -221,6 +238,7 @@ public class HistoricalRateService {
                 .setScale(CerpsConstants.CALCULATION_SCALE, RoundingMode.HALF_UP);
     }
 
-    private record ResolvedSnapshot(Map<String, BigDecimal> eurRates, String source, Instant timestamp) {
+    private record ResolvedSnapshot(Map<String, BigDecimal> eurRates, String source, Instant timestamp,
+                                    boolean complete) {
     }
 }
