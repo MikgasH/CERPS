@@ -4,13 +4,18 @@ import com.example.cerpshashkin.integration.BaseWireMockTest;
 import com.example.cerpshashkin.client.impl.CurrencyApiClient;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Currency;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -127,6 +132,32 @@ class CurrencyApiClientIntegrationTest extends BaseWireMockTest {
 
         assertThatThrownBy(() -> currencyApiClient.getLatestRates())
                 .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void getLatestRates_ShouldShortCircuitWithoutHttpCall_WhenCircuitBreakerOpens() {
+        stubFor(get(urlEqualTo("/latest?apikey=test-currencyapi-key"))
+                .willReturn(aResponse()
+                        .withStatus(500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(readJsonFile("error-response.json"))));
+
+        final CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker("currencyApiClient");
+
+        // Retry wraps the breaker, so every attempt (2 per call) is recorded;
+        // 5 recorded failures reach minimum-number-of-calls at 100% failure rate.
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(currencyApiClient::getLatestRates).isInstanceOf(Exception.class);
+        }
+
+        assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+        wireMockServer.resetRequests();
+
+        assertThatThrownBy(currencyApiClient::getLatestRates)
+                .isInstanceOf(CallNotPermittedException.class);
+
+        verify(0, getRequestedFor(urlPathEqualTo("/latest")));
     }
 
     @Test

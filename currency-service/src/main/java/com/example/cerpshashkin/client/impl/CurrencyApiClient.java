@@ -7,6 +7,7 @@ import com.example.cerpshashkin.dto.CurrencyApiRawResponse;
 import com.example.cerpshashkin.exception.ExternalApiException;
 import com.example.cerpshashkin.model.CurrencyExchangeResponse;
 import com.example.cerpshashkin.service.ProviderKeyManagementService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class CurrencyApiClient implements ExchangeRateClient {
     private final ProviderKeyManagementService providerKeyService;
 
     @Override
+    @CircuitBreaker(name = "currencyApiClient")
     @Retry(name = "currencyApiClient")
     public CurrencyExchangeResponse getLatestRates() {
         log.info(FETCHING_LATEST_LOG, getProviderName());

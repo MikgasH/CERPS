@@ -119,15 +119,32 @@ springdoc:
 resilience4j:
   retry:
     instances:
+      # The three primary clients serve both the 8h scheduler refresh and the
+      # synchronous /currencies/convert fallback path (stale-DB case). The
+      # budget is sized for the request path — 2 attempts with a short wait
+      # caps worst-case blocking at ~2 read timeouts per provider (was 3
+      # attempts x 2s waits) — because the scheduler already has its own
+      # retry layers (3 startup attempts, 8h cadence inside the 24h freshness
+      # window). Only the listed transient failures are retried, so an
+      # open-circuit CallNotPermittedException fails fast.
       fixerClient:
-        max-attempts: 3
-        wait-duration: 2s
+        max-attempts: 2
+        wait-duration: 300ms
+        retry-exceptions:
+          - com.example.cerpshashkin.exception.ExternalApiException
+          - org.springframework.web.client.RestClientException
       exchangeRatesClient:
-        max-attempts: 3
-        wait-duration: 2s
+        max-attempts: 2
+        wait-duration: 300ms
+        retry-exceptions:
+          - com.example.cerpshashkin.exception.ExternalApiException
+          - org.springframework.web.client.RestClientException
       currencyApiClient:
-        max-attempts: 3
-        wait-duration: 2s
+        max-attempts: 2
+        wait-duration: 300ms
+        retry-exceptions:
+          - com.example.cerpshashkin.exception.ExternalApiException
+          - org.springframework.web.client.RestClientException
       frankfurterClient:
         # Short waits so the /rates/historical request path gives up in ~0.6s
         # rather than ~6s (was 2s waits). Only the listed transient failures are
@@ -139,6 +156,35 @@ resilience4j:
           - org.springframework.web.client.RestClientException
   circuitbreaker:
     instances:
+      # Each retry attempt is recorded by the breaker (Retry wraps
+      # CircuitBreaker), so with all providers down the breaker opens within
+      # ~3 convert requests and later ones fail in microseconds instead of
+      # blocking a Tomcat thread on provider timeouts. Median aggregation
+      # tolerates an open breaker: the provider just drops out of the fan-out.
+      fixerClient:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      exchangeRatesClient:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      currencyApiClient:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
       frankfurterClient:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10

@@ -61,7 +61,7 @@ public abstract class BaseWireMockTest {
     private SupportedCurrencyRepository supportedCurrencyRepository;
 
     @Autowired
-    private CircuitBreakerRegistry circuitBreakerRegistry;
+    protected CircuitBreakerRegistry circuitBreakerRegistry;
 
     private static boolean dataInitialized = false;
 
