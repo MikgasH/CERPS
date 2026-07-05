@@ -1,35 +1,27 @@
 package org.example.analyticsservice.exception;
 
-import com.example.cerps.common.CerpsConstants;
+import com.example.cerps.common.exception.BaseGlobalExceptionHandler;
 import com.example.cerps.common.exception.ExternalServiceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.net.URI;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseGlobalExceptionHandler {
 
     @ExceptionHandler(InsufficientDataException.class)
     public ProblemDetail handleInsufficientDataException(final InsufficientDataException ex) {
         log.error("Insufficient data: {}", ex.getMessage());
 
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+        final ProblemDetail problemDetail = createProblemDetail(
                 HttpStatus.NOT_FOUND,
-                ex.getMessage()
+                "Insufficient Data",
+                ex.getMessage(),
+                "insufficient-data"
         );
-        problemDetail.setTitle("Insufficient Data");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "insufficient-data"));
-        problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("suggestion",
                 "Try a wider date range or retry later once more rate history is available");
 
@@ -40,13 +32,12 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleCurrencyNotSupportedException(final CurrencyNotSupportedException ex) {
         log.error("Currency not supported: {}", ex.getMessage());
 
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+        final ProblemDetail problemDetail = createProblemDetail(
                 HttpStatus.BAD_REQUEST,
-                ex.getMessage()
+                "Currency Not Supported",
+                ex.getMessage(),
+                "currency-not-supported"
         );
-        problemDetail.setTitle("Currency Not Supported");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "currency-not-supported"));
-        problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("invalidCurrency", ex.getInvalidCurrency());
 
         return problemDetail;
@@ -56,53 +47,13 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleMinimumPeriodNotSupportedException(final MinimumPeriodNotSupportedException ex) {
         log.error("Minimum period not supported: {}", ex.getMessage());
 
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+        final ProblemDetail problemDetail = createProblemDetail(
                 HttpStatus.UNPROCESSABLE_ENTITY,
-                ex.getMessage()
+                "Minimum Period Not Supported",
+                ex.getMessage(),
+                "minimum-period-not-supported"
         );
-        problemDetail.setTitle("Minimum Period Not Supported");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "minimum-period-not-supported"));
-        problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("minimumPeriod", ex.getMinimumPeriod());
-
-        return problemDetail;
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationException(final MethodArgumentNotValidException ex) {
-        log.error("Validation error: {}", ex.getMessage());
-
-        final Map<String, String> errors = new HashMap<>();
-
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            final String fieldName = ((FieldError) error).getField();
-            final String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                "Validation failed for request parameters"
-        );
-        problemDetail.setTitle("Validation Error");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "validation"));
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("errors", errors);
-
-        return problemDetail;
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgumentException(final IllegalArgumentException ex) {
-        log.error("Invalid argument: {}", ex.getMessage());
-
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                ex.getMessage()
-        );
-        problemDetail.setTitle("Invalid Request");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "invalid-request"));
-        problemDetail.setProperty("timestamp", Instant.now());
 
         return problemDetail;
     }
@@ -111,31 +62,15 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleExternalServiceException(final ExternalServiceException ex) {
         log.error("External service call failed: {}", ex.getMessage(), ex);
 
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+        final ProblemDetail problemDetail = createProblemDetail(
                 HttpStatus.SERVICE_UNAVAILABLE,
-                "Upstream currency-service is currently unavailable"
+                "Service Unavailable",
+                "Upstream currency-service is currently unavailable",
+                "external-service-unavailable"
         );
-        problemDetail.setTitle("Service Unavailable");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "external-service-unavailable"));
-        problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("upstream", "currency-service");
         problemDetail.setProperty("diagnostic", ex.getMessage());
         problemDetail.setProperty("suggestion", "Retry the request after a short delay");
-
-        return problemDetail;
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGenericException(final Exception ex) {
-        log.error("Unexpected error: ", ex);
-
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred"
-        );
-        problemDetail.setTitle("Internal Server Error");
-        problemDetail.setType(URI.create(CerpsConstants.ERROR_URI_PREFIX + "internal"));
-        problemDetail.setProperty("timestamp", Instant.now());
 
         return problemDetail;
     }

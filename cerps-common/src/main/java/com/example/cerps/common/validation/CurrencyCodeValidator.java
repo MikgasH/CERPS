@@ -4,8 +4,6 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 import java.util.Currency;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class CurrencyCodeValidator implements ConstraintValidator<ValidCurrency, String> {
 

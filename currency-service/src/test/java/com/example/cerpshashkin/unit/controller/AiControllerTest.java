@@ -68,7 +68,7 @@ class AiControllerTest {
                         .param("bankName", "   ")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Invalid argument"))
+                .andExpect(jsonPath("$.title").value("Invalid Request"))
                 .andExpect(jsonPath("$.detail").value("bankName must not be blank"));
 
         verify(aiService).validateBankName("   ");

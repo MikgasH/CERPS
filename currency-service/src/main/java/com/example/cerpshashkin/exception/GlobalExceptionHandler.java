@@ -1,105 +1,78 @@
 package com.example.cerpshashkin.exception;
 
+import com.example.cerps.common.exception.BaseGlobalExceptionHandler;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
-import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 
-@Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseGlobalExceptionHandler {
 
     @ExceptionHandler(InvalidCurrencyException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ProblemDetail handleInvalidCurrencyException(final InvalidCurrencyException ex) {
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Invalid currency code", ex.getMessage());
+        return createProblemDetail(HttpStatus.BAD_REQUEST, "Invalid currency code", ex.getMessage(),
+                "invalid-currency");
     }
 
     @ExceptionHandler(ProviderKeyNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleProviderKeyNotFoundException(final ProviderKeyNotFoundException ex) {
-        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage());
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage(),
+                "provider-key-not-found");
     }
 
     @ExceptionHandler(ProviderKeyNotFoundByNameException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleProviderKeyNotFoundByNameException(final ProviderKeyNotFoundByNameException ex) {
-        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage());
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Provider key not found", ex.getMessage(),
+                "provider-key-not-found");
     }
 
     @ExceptionHandler(HistoricalRatesNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleHistoricalRatesNotFoundException(final HistoricalRatesNotFoundException ex) {
-        return createProblemDetail(HttpStatus.NOT_FOUND, "Historical rates not found", ex.getMessage());
+        return createProblemDetail(HttpStatus.NOT_FOUND, "Historical rates not found", ex.getMessage(),
+                "historical-rates-not-found");
     }
 
     @ExceptionHandler(RateNotAvailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleRateNotAvailableException(final RateNotAvailableException ex) {
-        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Exchange rate not available", ex.getMessage());
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Exchange rate not available", ex.getMessage(),
+                "rate-not-available");
     }
 
     @ExceptionHandler(ExchangeRateNotAvailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleExchangeRateNotAvailableException(final ExchangeRateNotAvailableException ex) {
-        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Exchange rate unavailable", ex.getMessage());
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Exchange rate unavailable", ex.getMessage(),
+                "rate-not-available");
     }
 
     @ExceptionHandler(AllProvidersFailedException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleAllProvidersFailedException(final AllProvidersFailedException ex) {
-        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "All providers failed", ex.getMessage());
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "All providers failed", ex.getMessage(),
+                "all-providers-failed");
     }
 
     @ExceptionHandler(ServiceUnavailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ProblemDetail handleServiceUnavailableException(final ServiceUnavailableException ex) {
-        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Service unavailable", ex.getMessage());
-    }
-
-    @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleConstraintViolationException(final ConstraintViolationException ex) {
-        String message = ex.getConstraintViolations().stream()
-                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
-                .findFirst()
-                .orElse(ex.getMessage());
-
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Validation error", message);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleMethodArgumentNotValidException(final MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .findFirst()
-                .orElse("Validation failed");
-
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Validation error", message);
-    }
-
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleMissingServletRequestParameterException(final MissingServletRequestParameterException ex) {
-        return createProblemDetail(
-                HttpStatus.BAD_REQUEST,
-                "Missing required parameter",
-                "Required parameter '" + ex.getParameterName() + "' is missing"
-        );
+        return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, "Service unavailable", ex.getMessage(),
+                "service-unavailable");
     }
 
     @ExceptionHandler(ExternalApiException.class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public ProblemDetail handleExternalApiException(final ExternalApiException ex) {
-        return createProblemDetail(HttpStatus.BAD_GATEWAY, "External API error", ex.getMessage());
+        return createProblemDetail(HttpStatus.BAD_GATEWAY, "External API error", ex.getMessage(),
+                "external-api");
     }
 
     @ExceptionHandler(CallNotPermittedException.class)
@@ -108,36 +81,14 @@ public class GlobalExceptionHandler {
         // An open circuit means a downstream provider is being shielded while it
         // recovers; surface a transient 503 rather than a generic 500.
         return createProblemDetail(HttpStatus.SERVICE_UNAVAILABLE,
-                "Service temporarily unavailable", "An upstream provider is temporarily unavailable");
-    }
-
-    @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ProblemDetail handleGenericException(final Exception ex) {
-        log.error("Unexpected error occurred", ex);
-        return createProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error",
-                "An unexpected error occurred");
+                "Service temporarily unavailable", "An upstream provider is temporarily unavailable",
+                "service-unavailable");
     }
 
     @ExceptionHandler(CurrencyNotSupportedException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ProblemDetail handleCurrencyNotSupported(final CurrencyNotSupportedException ex) {
-        return createProblemDetail(
-                HttpStatus.BAD_REQUEST,
-                "Currency Not Supported", ex.getMessage()
-        );
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleIllegalArgumentException(final IllegalArgumentException ex) {
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Invalid argument", ex.getMessage());
-    }
-
-    private ProblemDetail createProblemDetail(final HttpStatus status, final String title, final String detail) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(status.value());
-        problemDetail.setTitle(title);
-        problemDetail.setDetail(detail);
-        return problemDetail;
+        return createProblemDetail(HttpStatus.BAD_REQUEST, "Currency Not Supported", ex.getMessage(),
+                "currency-not-supported");
     }
 }
