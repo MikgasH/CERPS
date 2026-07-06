@@ -55,6 +55,10 @@ public abstract class BaseWireMockTest {
         registry.add("api.frankfurter.url", () -> baseUrl);
         registry.add("api.mock1.url", () -> baseUrl);
         registry.add("api.mock2.url", () -> baseUrl);
+        // Trailing slash matters: GeminiClient's endpoint path is relative
+        // (no leading slash), matching the production base-url shape.
+        registry.add("gemini.base-url", () -> baseUrl + "/");
+        registry.add("gemini.api-key", () -> "test-gemini-key");
     }
 
     @Autowired
