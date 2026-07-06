@@ -1,6 +1,7 @@
 package com.example.cerpshashkin.unit.config;
 
 import com.example.cerpshashkin.config.CacheConfig;
+import com.example.cerpshashkin.config.NativeImageConfig;
 import com.example.cerpshashkin.dto.HistoricalRatesResponse;
 import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.support.SimpleCacheManager;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -56,6 +58,36 @@ class CacheConfigTest {
 
         assertThat(ttl).isLessThanOrEqualTo(HOUR);
         assertThat(ttl).isGreaterThan(HOUR.minusMinutes(1));
+    }
+
+    @Test
+    void historicalRatesCache_ShouldUseCaffeineClassesRegisteredForNativeImage() throws Exception {
+        // Caffeine picks its internal cache/node classes reflectively from
+        // the builder options (maximumSize + variable Expiry -> SSMSA/PSWMS).
+        // NativeImageConfig registers exactly these names for GraalVM; if a
+        // Caffeine upgrade or a CacheConfig builder change alters the chosen
+        // classes, this test fails on the JVM instead of the native image
+        // failing at startup with ClassNotFoundException.
+        Object localCache = readField(historicalRatesCache.getNativeCache(), "cache");
+        assertThat(localCache.getClass().getName())
+                .isEqualTo(NativeImageConfig.CAFFEINE_CACHE_CLASS);
+
+        Object nodeFactory = readField(localCache, "nodeFactory");
+        assertThat(nodeFactory.getClass().getName())
+                .isEqualTo(NativeImageConfig.CAFFEINE_NODE_CLASS);
+    }
+
+    private static Object readField(final Object target, final String fieldName) throws ReflectiveOperationException {
+        for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+            try {
+                Field field = type.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (NoSuchFieldException next) {
+                continue;
+            }
+        }
+        throw new NoSuchFieldException(fieldName + " not found on " + target.getClass());
     }
 
     private Duration ttlOf(final String key, final HistoricalRatesResponse value) {

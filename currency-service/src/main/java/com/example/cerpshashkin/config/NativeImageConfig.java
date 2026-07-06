@@ -20,11 +20,28 @@ import com.example.cerpshashkin.repository.RateQueryResult;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
+import org.springframework.aot.hint.TypeReference;
 
 /**
  * GraalVM Native Image reachability hints for currency-service.
  */
 public class NativeImageConfig implements RuntimeHintsRegistrar {
+
+    // Caffeine cache implementation classes are chosen reflectively at
+    // runtime (LocalCacheFactory/NodeFactory Class.forName by a name encoding
+    // the builder options). The historicalRates cache combines maximumSize
+    // with a variable Expiry - a combination the shipped GraalVM reachability
+    // metadata for caffeine does NOT cover (it lists SSMS/SSMSW/..., not
+    // SSMSA) - so its classes must be registered here or the native image
+    // dies at startup with ClassNotFoundException: SSMSA. CacheConfigTest
+    // pins these names to the cache actually built, so a Caffeine upgrade or
+    // builder-option change that invalidates them fails the JVM test run.
+    public static final String CAFFEINE_CACHE_CLASS = "com.github.benmanes.caffeine.cache.SSMSA";
+    // Variable-expiry nodes reuse the write-time node layout, hence PSWMS
+    // (not PSAMS); the shipped metadata happens to cover PSWMS conditionally,
+    // but it is registered here anyway so the cache's needs are explicit and
+    // not dependent on the metadata repository being applied.
+    public static final String CAFFEINE_NODE_CLASS = "com.github.benmanes.caffeine.cache.PSWMS";
 
     @Override
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
@@ -34,7 +51,23 @@ public class NativeImageConfig implements RuntimeHintsRegistrar {
         registerValidators(hints);
         registerJpaHints(hints);
         registerConverters(hints);
+        registerCaffeineCacheHints(hints);
         registerResources(hints);
+    }
+
+    private void registerCaffeineCacheHints(final RuntimeHints hints) {
+        // Constructor-only registration, mirroring the entries the official
+        // reachability metadata uses for the covered combinations: the cache
+        // class is instantiated via (Caffeine, AsyncCacheLoader, boolean),
+        // the node prototype via its no-arg constructor; field access in the
+        // generated classes goes through Unsafe offsets and is covered by the
+        // metadata's conditional entries once the types are reachable.
+        hints.reflection().registerType(
+                TypeReference.of(CAFFEINE_CACHE_CLASS),
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
+        hints.reflection().registerType(
+                TypeReference.of(CAFFEINE_NODE_CLASS),
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
     }
 
     private void registerExternalApiDtos(final RuntimeHints hints) {
