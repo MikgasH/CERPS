@@ -112,7 +112,16 @@ class AiServiceTest {
     }
 
     @Test
-    void getBankCommission_returnsNumberWithSuffix_extractsFirstNumber() {
+    void getBankCommission_cleanNumericAnswer_returnsValue() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("2.5");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(2.5);
+    }
+
+    @Test
+    void getBankCommission_numberWithSuffix_extractsPercentValue() {
         when(geminiClient.generate(anyString(), anyString())).thenReturn("The answer is 3.0%");
 
         final Double result = aiService.getBankCommission("SomeBank");
@@ -121,8 +130,92 @@ class AiServiceTest {
     }
 
     @Test
+    void getBankCommission_strayNumberBeforePercentValue_skipsStrayNumber() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("As of 2024, 2.5%");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(2.5);
+    }
+
+    @Test
+    void getBankCommission_strayNumberWithoutPercentSign_skipsImplausibleNumber() {
+        when(geminiClient.generate(anyString(), anyString()))
+                .thenReturn("As of 2024 the typical commission is 2.5");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(2.5);
+    }
+
+    @Test
+    void getBankCommission_percentSpelledOut_extractsValue() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("about 1.75 percent");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(1.75);
+    }
+
+    @Test
+    void getBankCommission_onlyImplausibleNumbers_returnsNull() {
+        when(geminiClient.generate(anyString(), anyString()))
+                .thenReturn("Commission data was last published in 2024.");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void getBankCommission_bareImplausibleNumber_returnsNull() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("2024");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void getBankCommission_implausiblePercentValue_returnsNull() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("The commission is 2024%");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void getBankCommission_valueAtPlausibilityBoundary_isAccepted() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("20");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(20.0);
+    }
+
+    @Test
+    void getBankCommission_zeroCommission_returnsZero() {
+        when(geminiClient.generate(anyString(), anyString())).thenReturn("0");
+
+        final Double result = aiService.getBankCommission("SomeBank");
+
+        assertThat(result).isEqualTo(0.0);
+    }
+
+    @Test
     void getBankCommission_returnsNOT_FOUND_returnsNull() {
         when(geminiClient.generate(anyString(), anyString())).thenReturn("NOT_FOUND");
+
+        final Double result = aiService.getBankCommission("UnknownBank");
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void getBankCommission_NOT_FOUNDWithSurroundingText_returnsNull() {
+        when(geminiClient.generate(anyString(), anyString()))
+                .thenReturn("As of 2024 I have no data: NOT_FOUND");
 
         final Double result = aiService.getBankCommission("UnknownBank");
 

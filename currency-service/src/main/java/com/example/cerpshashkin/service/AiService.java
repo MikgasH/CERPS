@@ -18,8 +18,19 @@ public class AiService {
 
     private static final int MAX_BANK_NAME_LENGTH = 100;
     private static final Pattern VALID_BANK_NAME = Pattern.compile("^[\\p{L}\\p{N} '\\-]+$");
-    private static final Pattern NUMBER = Pattern.compile("(\\d+\\.?\\d*)");
     private static final String NOT_FOUND_MARKER = "NOT_FOUND";
+
+    // The model is asked (see gemini.prompts in application.yml) for a bare
+    // number, but it can still answer with surrounding prose that contains
+    // other numbers ("as of 2024, 2.5%"). Candidates are therefore taken in
+    // order of confidence -- the whole answer, then a percent-anchored number,
+    // then any number -- and every candidate must fall inside a plausible
+    // commission range before it is accepted.
+    private static final double MAX_PLAUSIBLE_COMMISSION_PERCENT = 20.0;
+    private static final Pattern BARE_NUMBER = Pattern.compile("^\\d+(?:\\.\\d+)?$");
+    private static final Pattern PERCENT_NUMBER = Pattern.compile(
+            "(\\d+(?:\\.\\d+)?)\\s*(?:%|percent)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ANY_NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
 
     private static final String PROMPT_SYSTEM = "system";
     private static final String PROMPT_BANK_COMMISSION = "bank-commission";
@@ -66,18 +77,41 @@ public class AiService {
             return null;
         }
 
-        final Matcher matcher = NUMBER.matcher(trimmed);
-        if (!matcher.find()) {
-            log.info("Gemini returned no parseable number for bankName='{}': {}", bankName, trimmed);
-            return null;
+        final Double commission = extractCommission(trimmed);
+        if (commission == null) {
+            log.info("Gemini returned no plausible commission for bankName='{}': {}", bankName, trimmed);
+        }
+        return commission;
+    }
+
+    private Double extractCommission(final String text) {
+        if (BARE_NUMBER.matcher(text).matches()) {
+            return plausibleOrNull(text);
         }
 
-        try {
-            return Double.parseDouble(matcher.group(1));
-        } catch (final NumberFormatException ex) {
-            log.warn("Could not parse Gemini number '{}' for bankName='{}'", matcher.group(1), bankName);
-            return null;
+        final Double percentValue = firstPlausibleMatch(PERCENT_NUMBER.matcher(text), 1);
+        if (percentValue != null) {
+            return percentValue;
         }
+
+        return firstPlausibleMatch(ANY_NUMBER.matcher(text), 0);
+    }
+
+    private Double firstPlausibleMatch(final Matcher matcher, final int group) {
+        while (matcher.find()) {
+            final Double value = plausibleOrNull(matcher.group(group));
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    // The candidate always comes from a digits-only pattern, so parsing cannot
+    // fail; the bounds check is what rejects stray numbers such as a year.
+    private Double plausibleOrNull(final String candidate) {
+        final double value = Double.parseDouble(candidate);
+        return value <= MAX_PLAUSIBLE_COMMISSION_PERCENT ? value : null;
     }
 
     private String requirePrompt(final String key) {

@@ -69,8 +69,8 @@ gemini:
   base-url: https://generativelanguage.googleapis.com/
   model: gemini-3.1-flash-lite-preview
   prompts:
-    system: "You are a financial data assistant. You specialize exclusively in bank fees and foreign currency transaction commissions. Refuse any questions not related to bank commission rates."
-    bank-commission: "For the bank named '{bankName}', what is the typical foreign currency transaction commission percentage? Return ONLY a single decimal number (e.g. 0.5 or 3.0). If unknown or unsure, return exactly: NOT_FOUND"
+    system: "You are a financial data assistant. You specialize exclusively in bank fees and foreign currency transaction commissions. Refuse any questions not related to bank commission rates. Answer with the requested value alone: never add dates, sources, ranges, caveats or any other commentary."
+    bank-commission: "For the bank named '{bankName}', what is the typical foreign currency transaction commission percentage? Your entire reply must be a single decimal number and nothing else (e.g. 0.5 or 3.0) - no percent sign, no currency, no year or date, no range, no words, no explanation. If unknown or unsure, reply with exactly: NOT_FOUND"
 
 management:
   endpoints:
