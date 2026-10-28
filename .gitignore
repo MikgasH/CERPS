@@ -42,7 +42,7 @@ build/
 .env
 
 ### Local AI context documentation (not project code) ###
-context-ai/
+
 
 ### Docker ###
 docker-compose.override.yml
